@@ -1,0 +1,26 @@
+[package]
+name = "quran-app"
+version = "0.1.0"
+description = "المصحف المبتكر — قارئ مصحف تفاعلي Offline-First"
+authors = ["owner"]
+edition = "2021"
+
+[lib]
+name = "quran_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+percent-encoding = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# ملحقات مخططة (تُضاف عند مراحلها — انظر الخطة §2):
+# tauri-plugin-sql (sqlite) · tauri-plugin-notification · tauri-plugin-fs
+# tauri-plugin-http (مدير التحميلات) · tauri-plugin-updater · single-instance · tray-icon
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
