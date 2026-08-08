@@ -1,0 +1,1785 @@
+/* ============================================================================
+   ورتل القرآن — لغة التصميم: «المِسْنَد»
+   ----------------------------------------------------------------------------
+   المبدأ الواحد: الورقة هي الشيء المضيء الوحيد في الغرفة، وكل ما عداها مسنَدٌ
+   لها ينسحب إلى الخلف. لذلك:
+
+   1) فجوة قيمة حقيقية بين الورق والغرفة. كانت الغرفة (#ece4d9) شبه بلون الورق
+      (#faf5e6) فلم يكن للمصحف حافة يُعرف بها؛ الغرفة الآن سطح مكتب داكن مطفي.
+   2) لا زجاج. backdrop-filter كان أقوى إشارة إلى «تطبيق ويب عام» في الواجهة كلها.
+      بدله أسطح مصمتة مغروزة في المكتب.
+   3) لهجة واحدة: الذهبي --gilt مأخوذ حرفياً من لون زخرفة الورقة نفسها
+      (نفس #c9a227 في بلاطة SVG أدناه) — لا لون مستورد من خارج المصحف.
+   4) الأدوات أثاثٌ في حافة المكتب لا بطاقات طافية فوق الكتاب.
+
+   نص المصحف ورسمه وقياساته: لم يُمسّ منها شيء. كل ما تحت العنوان «صفحة المصحف»
+   منقول كما هو حرفاً بحرف.
+   ========================================================================= */
+
+/* ---------- التصفير المبدئي ----------
+   كان يأتي من Tailwind preflight؛ بعد إسقاط التبعية (2026-08-08) نملكه بأنفسنا —
+   أزرار المشروع وقوائمه كانت تتكئ على إزالة الهوامش والحدود الافتراضية. */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+* { margin: 0; }
+button,
+input,
+select,
+textarea { font: inherit; color: inherit; }
+button { background: none; border: none; padding: 0; cursor: pointer; }
+ul,
+ol { padding: 0; list-style: none; }
+img,
+svg { display: block; max-width: 100%; }
+
+:root {
+  color-scheme: dark;
+
+  /* ——— الورقة: كما كانت، لا تُمسّ ——— */
+  --paper: #faf5e6;
+  --ink: #211d16;
+  --frame: #8a6a34;
+  --frame-deep: #2f5d46;
+  --header-ink: #9e2b25;
+  --marker: #8f6b12;
+  --banner-hi: #376550;
+  --banner-lo: #24473a;
+  --banner-gold: #d9b73c;
+  --banner-name: #f6e9bf;
+
+  /* ——— المكتب: السطح الذي يحمل الورقة ——— */
+  --desk: #2c302b;          /* زيتوني جرافيتي عميق */
+  --desk-deep: #23261f;     /* الأثاث المغروز: السكة والعتبة */
+  --desk-raise: #363a33;    /* السطح المرفوع: البطاقات والدُّرج */
+  --desk-line: #454a40;     /* الحد الفاصل */
+  --desk-ink: #e4dfd0;      /* نص عاجي دافئ */
+  --desk-ink-dim: #9d9887;  /* نص ثانوي */
+
+  /* ——— اللهجة الوحيدة: ذهب الزخرفة نفسه ——— */
+  --gilt: #c9a227;
+  --gilt-soft: #8d7226;
+  --alarm: #d4796a;         /* مستحق/خطأ — طوب فاتح، لا أحمر إشاري */
+
+  --shadow-page: 0 24px 64px -12px rgb(0 0 0 / 0.55), 0 2px 10px rgb(0 0 0 / 0.3);
+
+  /* خطوط الواجهة — ثلاثة أدوار.
+     العرض: نسخ من خطوط النظام (مجالسة، SF Arabic، أميري) — تقليد المصحف نفسه.
+     المتن والأرقام: خط واجهة النظام. لا تنزيل، لا اتصال. */
+  --face-display: 'Sakkal Majalla', 'SF Arabic', 'Amiri', 'Traditional Arabic', 'Noto Naskh Arabic', Georgia, serif;
+  --face-ui: 'Segoe UI Variable Text', 'Segoe UI', 'SF Pro Text', 'Dubai', 'Noto Sans Arabic', system-ui, sans-serif;
+}
+
+/* سيبيا — الورقة أدفأ والمكتب جوزيّ */
+:root[data-theme='sepia'] {
+  --paper: #f1e2c2;
+  --ink: #45341f;
+  --frame: #96773d;
+  --frame-deep: #6f5130;
+  --header-ink: #93402c;
+  --marker: #8a6a10;
+  --banner-gold: #c09e32;
+
+  --desk: #2b241c;
+  --desk-deep: #221c16;
+  --desk-raise: #362d23;
+  --desk-line: #473b2d;
+  --desk-ink: #ece0c6;
+  --desk-ink-dim: #a4947a;
+  --gilt: #d0aa33;
+}
+
+/* ليلي — الورقة داكنة والمكتب أدكن منها فتبقى الورقة هي المرئية */
+:root[data-theme='night'] {
+  --paper: #201d17;
+  --ink: #eae1c9;
+  --frame: #c2a24f;
+  --frame-deep: #3f7a5c;
+  --header-ink: #e07a68;
+  --marker: #d9b73c;
+  --banner-gold: #d9b73c;
+
+  --desk: #0e0d0c;
+  --desk-deep: #090908;
+  --desk-raise: #1c1a17;
+  --desk-line: #2f2c27;
+  --desk-ink: #ded7c4;
+  --desk-ink-dim: #8e8877;
+  --gilt: #d9b73c;
+  --shadow-page: 0 24px 64px -14px rgb(0 0 0 / 0.8), 0 0 0 1px rgb(217 183 60 / 0.07);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--desk);
+  color: var(--desk-ink);
+  font-family: var(--face-ui);
+  font-size: 0.9375rem;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--gilt);
+  color: #16150f;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gilt);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* شريط تمرير رفيع بلون المكتب — لا شريط نظام أبيض يقطع الجو */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--desk-line) transparent;
+}
+
+/* ============================================================================
+   ١ — هيكل التطبيق: شبكة حقيقية، لا طبقات طافية
+   السكة والعتبة خانتان في الشبكة لا عنصران مطلقان فوق الكتاب. هذا يصلح العيب
+   الذي كان يقصّ أسفل الورقة (رقم الصفحة) تحت الشريط السفلي، ويجعل 100cqh
+   للمسرح مساوياً لارتفاعه المرئي فعلاً.
+   ========================================================================= */
+.app-shell {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    'rail stage'
+    'ledge ledge';
+  height: 100%;
+  overflow: hidden;
+  background: var(--desk);
+  /* إضاءة المكتب: بؤرة خفيفة خلف الورقة تحدد مركز النظر */
+  background-image: radial-gradient(
+    ellipse 78% 62% at 50% 42%,
+    color-mix(in srgb, var(--desk-raise) 55%, transparent),
+    transparent 70%
+  );
+}
+
+.app-shell--focus {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: 'stage';
+}
+
+/* لوحة التفسير خانة في الشبكة لا طبقة فوق الكتاب: المسرح يضيق فتتقلص الورقة
+   بقياساتها الحاوية وحدها ويبقى المصحف كاملاً مرئياً. اللوحة الطافية كانت
+   تحجب الصفحة اليسرى — أي الآية نفسها إن كانت فيها. */
+.app-shell--aside {
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'rail stage aside'
+    'ledge ledge ledge';
+}
+.app-shell--focus.app-shell--aside {
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'stage aside';
+}
+
+.stage-frame {
+  grid-area: stage;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+}
+
+.reader-stage {
+  container-type: size;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  /* هامش يتنفس حول الكتاب — الورقة الملاصقة لحافة النافذة تفقد كونها شيئاً
+     موضوعاً على سطح، وتصير خلفيةً للنافذة */
+  padding: clamp(0.75rem, 2.4vh, 1.75rem) clamp(0.5rem, 1vw, 1rem);
+}
+
+/* ============================================================================
+   ٢ — السكة: حافة المكتب. عمود مصمت مغروز، لا كبسولة زجاجية طافية.
+   ========================================================================= */
+.reader-rail {
+  grid-area: rail;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  width: 3.5rem;
+  padding: 0.6rem 0 0.5rem;
+  background: var(--desk-deep);
+  border-inline-end: 1px solid var(--desk-line);
+  color: var(--desk-ink-dim);
+}
+
+.rail-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.rail-sep {
+  width: 1.15rem;
+  height: 1px;
+  background: var(--desk-line);
+  margin-block: 0.45rem;
+}
+
+.rail-btn {
+  position: relative;
+  width: 2.35rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.rail-btn svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+.rail-btn:hover {
+  background: color-mix(in srgb, var(--desk-ink) 9%, transparent);
+  color: var(--desk-ink);
+}
+/* «هنا أنت»: خيط ذهبي على حافة الزر — علامة واحدة لا امتلاء لوني */
+.rail-btn--active {
+  color: var(--gilt);
+}
+.rail-btn--active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: -0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 1.15rem;
+  border-radius: 2px;
+  background: var(--gilt);
+}
+
+/* التسمية: بطاقة مصمتة تنزلق من السكة نحو المسرح.
+   السكة على حافة البداية (يمين في RTL) فالتسمية تمتد يساراً — right مادية مقصودة. */
+.rail-btn::after,
+.flip-btn::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  z-index: 40;
+  background: var(--desk-raise);
+  color: var(--desk-ink);
+  border: 1px solid var(--desk-line);
+  border-radius: 7px;
+  padding: 0.32rem 0.6rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.rail-btn::after {
+  right: calc(100% + 8px);
+}
+.rail-btn:hover::after,
+.rail-btn:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ——— التوقيع: خيط حرف المصحف ———
+   حافة كتلة الورق في المصحف المطبوع تُرِيك كم قطعت وكم بقي بنظرة. هنا خيط
+   رأسي واحد يملأ بقية السكة: علامات الأجزاء الثلاثين شُرَط خافتة، وموضعك
+   قطعة ذهبية. اسحب أو انقر لتنتقل. */
+.fore-edge {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 0.5rem;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: ns-resize;
+}
+/* المسار يملأ ارتفاع الزر كله فتطابق نسبة الموضع نسبة المؤشر بلا إزاحة */
+.fore-edge-track {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 50%;
+  transform: translateX(50%);
+  width: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--desk-ink) 13%, transparent);
+}
+.fore-edge-juz {
+  position: absolute;
+  inset-inline: -1px;
+  height: 1px;
+  background: color-mix(in srgb, var(--desk-ink) 26%, transparent);
+}
+.fore-edge-mark {
+  position: absolute;
+  inset-inline-start: 50%;
+  transform: translate(50%, -50%);
+  width: 11px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gilt);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--gilt) 60%, transparent);
+  transition: top 0.25s ease;
+}
+.fore-edge:hover .fore-edge-track {
+  background: color-mix(in srgb, var(--desk-ink) 22%, transparent);
+}
+.fore-edge:hover .fore-edge-juz {
+  background: color-mix(in srgb, var(--desk-ink) 40%, transparent);
+}
+.fore-edge::after {
+  content: attr(data-label);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: var(--label-top, 50%);
+  transform: translateY(-50%);
+  z-index: 40;
+  background: var(--desk-raise);
+  color: var(--desk-ink);
+  border: 1px solid var(--desk-line);
+  border-radius: 7px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+.fore-edge:hover::after,
+.fore-edge:focus-visible::after {
+  opacity: 1;
+}
+
+/* ============================================================================
+   ٣ — العتبة السفلية: سياق القراءة. مصمتة، بخيط ذهبي شعري واحد.
+   (كانت شريطاً أخضر مشبعاً بحد ذهبي عريض ينافس إطار الورقة على النظر.)
+   ========================================================================= */
+.reader-ledge {
+  grid-area: ledge;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.3rem 0.7rem;
+  min-height: 2.5rem;
+  background: var(--desk-deep);
+  border-top: 1px solid color-mix(in srgb, var(--gilt) 22%, var(--desk-line));
+  color: var(--desk-ink-dim);
+  font-size: 0.8125rem;
+}
+.ledge-side {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.ledge-place {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: none;
+  background: transparent;
+  color: var(--desk-ink);
+  border-radius: 7px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.ledge-place:hover {
+  background: color-mix(in srgb, var(--desk-ink) 8%, transparent);
+}
+.ledge-place em {
+  font-style: normal;
+  color: var(--desk-ink-dim);
+}
+
+.ledge-rule {
+  width: 1px;
+  height: 1.1rem;
+  background: var(--desk-line);
+}
+
+/* رقم الصفحة: الرقم الحيّ بالذهبي والمجموع خافت — تراتب لا حجم واحد */
+.ledge-page {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ledge-page b {
+  font-family: var(--face-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--gilt);
+  letter-spacing: 0.01em;
+}
+.ledge-page span {
+  font-size: 0.75rem;
+  color: var(--desk-ink-dim);
+}
+
+.ledge-jump {
+  width: 5.25rem;
+  border: 1px solid var(--desk-line);
+  border-radius: 7px;
+  background: color-mix(in srgb, #000 22%, transparent);
+  color: var(--desk-ink);
+  padding: 0.28rem 0.55rem;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  text-align: center;
+}
+.ledge-jump::placeholder {
+  color: var(--desk-ink-dim);
+}
+.ledge-jump::-webkit-outer-spin-button,
+.ledge-jump::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.ledge-jump[type='number'] {
+  appearance: textfield;
+}
+
+/* مجموعة الزوم: ثلاثة أزرار في وعاء واحد مغروز */
+.ledge-zoom {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  background: color-mix(in srgb, #000 22%, transparent);
+  border: 1px solid var(--desk-line);
+  border-radius: 8px;
+  padding: 1px;
+}
+.ledge-zoom button {
+  display: grid;
+  place-items: center;
+  min-width: 1.75rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--desk-ink-dim);
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.ledge-zoom button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--desk-ink) 10%, transparent);
+  color: var(--desk-ink);
+}
+.ledge-zoom button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ledge-zoom svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+.ledge-zoom .ledge-zoom-val {
+  padding-inline: 0.35rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ختم السلامة: يظهر خافتاً ويستيقظ عند التحويم — طمأنة لا إعلان */
+.ledge-seal {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--desk-ink-dim);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+  transition: opacity 0.14s ease, color 0.14s ease;
+  cursor: default;
+}
+.ledge-seal:hover {
+  opacity: 1;
+  color: var(--gilt);
+}
+.ledge-seal svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+@media (max-width: 820px) {
+  .ledge-seal,
+  .ledge-rule {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   ٤ — التقليب: منطقة على هامش المسرح لا زر طافٍ في زاوية النافذة.
+   الشارة تظهر عند الاقتراب؛ المنطقة كلها قابلة للنقر فالهدف واسع.
+   ========================================================================= */
+.flip-btn {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 15;
+  width: clamp(2.75rem, 6vw, 5rem);
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--desk-ink-dim);
+  cursor: pointer;
+}
+.flip-btn--prev {
+  inset-inline-start: 0;
+}
+.flip-btn--next {
+  inset-inline-end: 0;
+}
+.flip-btn svg {
+  width: 1.6rem;
+  height: 1.6rem;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.flip-btn:hover:not(:disabled) {
+  background: linear-gradient(
+    to var(--flip-fade, left),
+    color-mix(in srgb, var(--desk-ink) 7%, transparent),
+    transparent
+  );
+  color: var(--desk-ink);
+}
+.flip-btn--prev { --flip-fade: left; }
+.flip-btn--next { --flip-fade: right; }
+.flip-btn:hover:not(:disabled) svg,
+.flip-btn:focus-visible svg {
+  opacity: 1;
+  transform: none;
+}
+.flip-btn:disabled {
+  cursor: default;
+}
+.flip-btn::after {
+  bottom: 1.4rem;
+  top: auto;
+  transform: none;
+  inset-inline-start: 50%;
+  translate: 50% 0;
+}
+.flip-btn:hover:not(:disabled)::after {
+  opacity: 1;
+  transform: none;
+}
+
+/* زر الخروج من التركيز — خافت حتى يُقصد */
+.focus-exit {
+  position: absolute;
+  top: 0.8rem;
+  inset-inline-start: 0.8rem;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid var(--desk-line);
+  border-radius: 9px;
+  background: var(--desk-deep);
+  color: var(--desk-ink-dim);
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.14s ease, color 0.14s ease;
+}
+.focus-exit:hover {
+  opacity: 1;
+  color: var(--desk-ink);
+}
+.focus-exit svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* السكون: العتبة والسكة تخفتان ولا تختفيان — الموضع يبقى مقروءاً دائماً.
+   (كان الشريط السفلي يختفي كلياً فيفقد القارئ رقم صفحته.) */
+.chrome--idle .reader-rail,
+.chrome--idle .reader-ledge {
+  opacity: 0.45;
+}
+.reader-rail,
+.reader-ledge {
+  transition: opacity 0.5s ease;
+}
+.reader-rail:hover,
+.reader-ledge:hover {
+  opacity: 1;
+}
+
+/* ============================================================================
+   ٥ — أزرار الواجهة العامة (اللوحات والحوارات)
+   ========================================================================= */
+.reader-btn {
+  border-radius: 8px;
+  border: 1px solid var(--desk-line);
+  background: color-mix(in srgb, var(--desk-ink) 5%, transparent);
+  color: var(--desk-ink);
+  padding: 0.34rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.reader-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--desk-ink) 11%, transparent);
+  border-color: color-mix(in srgb, var(--desk-ink) 24%, transparent);
+}
+.reader-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+/* الفعل الأساسي: ذهب مخفَّف لا مصمت. الذهب المصمت يعمل حين يكون واحداً في
+   الشاشة؛ وبطاقات «اليوم» ثلاث لكل واحدة فعلها، فثلاثة أزرار مصمتة تتنازع
+   النظر ويضيع معنى اللهجة. التخفيف يُبقيها ظاهرة الفعل وهادئة معاً. */
+.reader-btn--primary {
+  background: color-mix(in srgb, var(--gilt) 15%, transparent);
+  border-color: color-mix(in srgb, var(--gilt) 50%, transparent);
+  color: var(--gilt);
+  font-weight: 600;
+}
+.reader-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--gilt) 26%, transparent);
+  border-color: var(--gilt);
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 1.95rem;
+  height: 1.95rem;
+  padding: 0;
+  border-radius: 8px;
+}
+.icon-btn svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+/* ============================================================================
+   صفحة المصحف — منقولة كما هي. لا تُعدَّل قياساتها ولا رسمها.
+   التغيير الوحيد: ظل الورقة (خارجي، لا يمسّ النص) وطيّة المجلّد بين الصفحتين.
+   ========================================================================= */
+.mushaf-sheet {
+  container-type: inline-size;
+  /* قيد واحد يقود: الارتفاع = أقلّ من ارتفاع المسرح ومن عرضه مقسوماً على
+     النسبة (140cqw ≈ 100cqw/0.71). كلاهما من الحاوية الفعلية فيكبر المصحف
+     مع النافذة في الاتجاهين ولا يتعاكس معها أبداً.
+     --zoom: زوم التطبيق (أزرار +/−) يضرب المقاس فيتجاوز المسرح مع تمرير. */
+  height: calc(min(100cqh, 156cqw) * var(--zoom, 1));
+  /* 0.64 بدل 0.71: عرض النص يرتفع من ~74% إلى ~85% من الورقة كالمطبوع،
+     ويصبح شريط الحشوة متوازناً على الجهات الأربع (السقف الجديد 156≈100/0.64) */
+  aspect-ratio: 0.64;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  /* الحلقة النباتية: بلاطة SVG (معيّن ذهبي + نقطة) على أخضر مدني تملأ
+     شريط الحشوة بين الإطار الخارجي والقاعدة الذهبية الداخلية */
+  background-color: var(--frame-deep);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpath d='M7 1 L13 7 L7 13 L1 7 Z' fill='none' stroke='%23c9a227' stroke-width='1.1'/%3E%3Ccircle cx='7' cy='7' r='1.5' fill='%23c9a227'/%3E%3C/svg%3E");
+  background-size: 13px 13px;
+  color: var(--ink);
+  /* تنبيه وحدات: خصائص الورقة نفسها (حدودها وحشوها) لا تستطيع الاستعلام عنها
+     كحاوية — cqw هنا تسقط إلى وحدات الشاشة وتلتهم هوامش النص (سبب «القص»).
+     لذا قيم ثابتة محدودة بـ clamp؛ أما كل ما داخل الورقة فيستعلم عنها بـ cqw بأمان. */
+  border: clamp(3px, 0.18svw, 5px) solid var(--frame-deep);
+  padding: clamp(5px, 0.38svw, 8px);
+  box-shadow: var(--shadow-page);
+  user-select: none;
+}
+
+.mushaf-sheet-inner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--paper);
+  border: 0.22cqw solid var(--frame);
+  padding-inline: 2.5%;
+}
+
+/* معيّن ماسي يتوسّط زاوية القاعدة الذهبية — لمسة الإطار الكلاسيكية */
+.mushaf-corner {
+  position: absolute;
+  width: 3.8cqw;
+  height: 3.8cqw;
+  color: var(--frame);
+  pointer-events: none;
+}
+.mushaf-corner--tl { top: -1.9cqw; inset-inline-start: -1.9cqw; }
+.mushaf-corner--tr { top: -1.9cqw; inset-inline-end: -1.9cqw; }
+.mushaf-corner--bl { bottom: -1.9cqw; inset-inline-start: -1.9cqw; }
+.mushaf-corner--br { bottom: -1.9cqw; inset-inline-end: -1.9cqw; }
+
+/* الترويسة: اسم السورة (بمحرفه الرسمي) يميناً واسم الجزء يساراً —
+   بالأحمر المدني كما في المطبوع، وبلا خط فاصل (المطبوع بلا خط تحت الترويسة) */
+.mushaf-header {
+  flex: 0 0 7%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 1.5%;
+  line-height: 1;
+  color: var(--header-ink);
+}
+.mushaf-header-surah { font-size: 4.6cqw; line-height: 1; }
+.mushaf-header-juz { font-size: 3.3cqw; font-weight: 600; }
+
+.mushaf-grid-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* صفحتا الافتتاح (1-2) بلا أثاث كما في المطبوع — الشبكة تتنفس كامل الارتفاع */
+.mushaf-grid-wrap--full { padding-block: 3.5%; }
+
+/* التذييل: رقم الصفحة بأرقام عربية مشرقية داخل دائرة — بالأحمر المدني */
+.mushaf-footer {
+  flex: 0 0 5.5%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.mushaf-pageno {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.2cqw;
+  height: 5.2cqw;
+  border: 0.22cqw solid var(--frame);
+  border-radius: 50%;
+  font-size: 3cqw;
+  font-weight: 600;
+  color: var(--header-ink);
+}
+
+.mushaf-page {
+  position: relative;
+  container-type: size;
+  /* نفس نمط القيد الواحد: ارتفاع يقود والعرض يتبع النسبة.
+     135cqw = سقف العرض بوحدة ارتفاع (أضيق من مساحة الشبكة دائماً) —
+     بلا max-width حتى لا يتعارض قيدان فتُكسر النسبة. */
+  aspect-ratio: 0.66;
+  height: min(100%, 135cqw);
+  display: flex;
+  flex-direction: column;
+  /* cqw فقط هنا: cqh على عنصر داخل حاوية عرضية يسقط إلى وحدة الشاشة */
+  padding: 1.4cqw 2cqw;
+  overflow: hidden;
+}
+
+.mushaf-page--state {
+  display: flex;
+  flex-direction: column;
+}
+
+/* حالتا الخطأ والانتظار — بأسلوب التطبيق لا أصناف خارجية */
+.mushaf-page--error,
+.mushaf-page--loading {
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.mushaf-page--error { color: var(--alarm, #b3261e); font-size: 1.125rem; }
+.mushaf-state-detail { font-size: 0.875rem; opacity: 0.75; }
+.mushaf-page--loading { color: var(--desk-ink-dim); animation: mushaf-in 1s ease-in-out infinite alternate; }
+
+.mushaf-line {
+  /* خانة ثابتة الارتفاع = 1/15 — الصفحات الناقصة تُوسَّط بدل التمدد */
+  flex: 0 0 calc(100% / 15);
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* الصفحات الناقصة الأسطر (1-2) تُوسَّط عمودياً كما في المطبوع */
+.mushaf-page--short {
+  justify-content: center;
+}
+
+/* لوحة الافتتاح: قاعدة ذهبية مزدوجة تحيط بأسطر صفحتي الفاتحة وأول البقرة،
+   فيصير الفراغ حولها هامشاً مقصوداً كما في المطبوع لا صفحةً ناقصة.
+   أثاث خالص — لا يمسّ سطراً ولا محرفاً. */
+.mushaf-opening-panel {
+  position: absolute;
+  /* موجب لا سالب: الصفحة overflow:hidden فالقيمة السالبة كانت تقصّ ضلعي
+     القاعدة الرأسيين ولا يبقى إلا الخطان الأفقيان */
+  inset-inline: 0.9cqw;
+  z-index: 0;
+  pointer-events: none;
+  border: 0.3cqw solid var(--frame);
+  outline: 0.12cqw solid var(--frame);
+  outline-offset: 0.55cqw;
+  border-radius: 0.5cqw;
+}
+.mushaf-page--short .mushaf-line {
+  position: relative;
+  z-index: 1;
+}
+
+.mushaf-line--justified {
+  justify-content: space-between;
+  /* معايرة على محارف QCF4 الفعلية (مجموع الآثار من الجداول): أعرض سطر في
+     المصحف كله 17.44em (صفحة 577) والعمود 96cqw ⟵ السقف 5.504cqw؛ أخذنا
+     5.45 بهامش أمان فلا يُقصّ سطر في أي صفحة، والفراغ يتوزع بالضبط. */
+  font-size: 5.45cqw;
+}
+
+.mushaf-line--centered {
+  justify-content: center;
+  gap: 0.35em;
+  font-size: 5.45cqw;
+}
+
+/* رأس السورة: شريط أخضر مدني كالمطبوع — لافتة بحدود ذهبية رفيعة،
+   يتوسطها خرطوشة عاجية باسم السورة بمحرفه الرسمي، ومعيّنان ذهبيان
+   عند الطرفين. أصغر وأنحف تماشياً مع لافتة المصحف المطبوع */
+.mushaf-surah-header {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  background: linear-gradient(180deg, var(--banner-hi), var(--banner-lo));
+  border: 0.16cqw solid var(--banner-gold);
+  outline: 0.08cqw solid var(--banner-gold);
+  outline-offset: 0.3cqw;
+  border-radius: 0.8cqw;
+  padding: 0.3cqw 0.9cqw;
+}
+
+/* نهايتا اللافتة: معيّن ذهبي صغير يتوسّط طرفيها — لمسة الخرطوشة المطبوعة */
+.mushaf-surah-header::before,
+.mushaf-surah-header::after {
+  content: '';
+  flex: 0 0 auto;
+  width: 1.1cqw;
+  height: 1.1cqw;
+  margin-inline: 0.55cqw;
+  background: var(--banner-gold);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.mushaf-surah-frame {
+  font-size: 6cqw;
+  line-height: 1;
+  color: var(--frame-deep);
+  background: var(--banner-name);
+  border-radius: 0.6cqw;
+  padding: 0.3cqw 1.5cqw;
+}
+
+/* البسملة العادية: محارف كلمات 1:1 بمقاس النص نفسه (ترث 5.45cqw من السطر)
+   — كفواتح السور في المصاحف المعتادة، بلا محرف زخرفي */
+.mushaf-basmala {
+  line-height: 1;
+}
+
+/* علامة نهاية الآية (char_type "end") بذهبي المطبوع */
+.mushaf-word--end {
+  color: var(--marker);
+}
+
+/* تحديد الكلمة والآية: كان أصفر Tailwind ثابتاً لا يعرف الثيم — الآن من ذهب
+   المصحف نفسه، وبكثافة تُقرأ فوق الورق الداكن في الوضع الليلي أيضاً. */
+.mushaf-word {
+  cursor: pointer;
+  border-radius: 0.18em;
+  transition: background-color 0.1s ease;
+}
+.mushaf-word:hover {
+  background-color: color-mix(in srgb, var(--marker) 18%, transparent);
+}
+.mushaf-word--sel,
+.mushaf-word--sel:hover {
+  background-color: color-mix(in srgb, var(--marker) 34%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--marker) 45%, transparent);
+}
+
+/* نبض تظليل نتيجة البحث: ثلاث ومضات ثم ثبات — يقود النظر إلى موضع الآية */
+@keyframes verse-hit-flash {
+  0%, 100% { background-color: color-mix(in srgb, var(--marker) 52%, transparent); }
+  50% { background-color: color-mix(in srgb, var(--marker) 10%, transparent); }
+}
+.mushaf-word--hit {
+  animation: verse-hit-flash 0.65s ease-in-out 3;
+  background-color: color-mix(in srgb, var(--marker) 34%, transparent);
+}
+
+/* ---------- الوضع المزدوج (صفحتان متقابلتان) ----------
+   اليمين فردي واليسار زوجي كالمصحف المفتوح. نفس قيد الارتفاع الواحد لكن
+   بسقف مُنصِف: ورقتان بعرض 0.71×H جنباً إلى جنب ⇒ H ≤ 94vw/1.42 ≈ 66vw. */
+.mushaf-spread {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+.mushaf-spread .mushaf-sheet {
+  /* ورقتان + فجوة: الارتفاع ≤ (عرض المسرح − الفجوة) / (0.64×2) ≈ 77cqw */
+  height: calc(min(100cqh, 77cqw) * var(--zoom, 1));
+}
+/* طيّة المجلّد: الصفحتان كانتا بطاقتين منفصلتين بفجوة؛ الآن تلتقيان على
+   خيط واحد بظل داخلي فتُقرأ كمصحف مفتوح لا كصورتين */
+.mushaf-spread .mushaf-sheet:first-child { border-start-start-radius: 3px; border-end-start-radius: 3px; }
+.mushaf-spread .mushaf-sheet:last-child { border-start-end-radius: 3px; border-end-end-radius: 3px; }
+.mushaf-gutter {
+  position: relative;
+  z-index: 2;
+  /* نفس ارتفاع الورقتين بالضبط — لا align-self:stretch الذي كان يمدّه على
+     كامل المسرح فيظهر شريطاً أسود فوق الورقتين وتحتهما */
+  height: calc(min(100cqh, 77cqw) * var(--zoom, 1));
+  flex: 0 0 clamp(5px, 0.9cqw, 13px);
+  margin-inline: -1px;
+  /* لون لوح الغلاف نفسه تحت ظل الطيّة — فتُقرأ الورقتان لوحاً واحداً مطويّاً
+     لا بطاقتين بينهما فراغ */
+  background:
+    linear-gradient(
+      to left,
+      rgb(0 0 0 / 0.4),
+      rgb(0 0 0 / 0.12) 45%,
+      rgb(0 0 0 / 0.12) 55%,
+      rgb(0 0 0 / 0.4)
+    ),
+    var(--frame-deep);
+  pointer-events: none;
+}
+
+/* ومضة تقليب خفيفة — تُعاد عند كل تقليب لأن مفتاح الصفحة يتغير */
+@keyframes mushaf-in {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+.mushaf-sheet {
+  animation: mushaf-in 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mushaf-sheet { animation: none; }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ============================================================================
+   ٦ — اللوحات: أدراج مصمتة من خشب المكتب، بترويسة ذهبية شعرية.
+   لا ضباب زجاجي، ولا لون ورق داخل واجهة (الورق للمصحف وحده).
+   ========================================================================= */
+.index-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(0 0 0 / 0.55);
+  animation: fade-in 0.18s ease;
+}
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+.index-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  inset-inline-start: 0;
+  width: min(400px, 94vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--desk-raise);
+  color: var(--desk-ink);
+  border-inline-end: 1px solid var(--desk-line);
+  box-shadow: -24px 0 64px rgb(0 0 0 / 0.5);
+  animation: drawer-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes drawer-in {
+  from { transform: translateX(18px); opacity: 0 }
+  to { transform: none; opacity: 1 }
+}
+
+.index-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--desk-line);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--gilt) 55%, transparent);
+}
+.index-head strong {
+  font-family: var(--face-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.index-close {
+  display: grid;
+  place-items: center;
+  width: 1.95rem;
+  height: 1.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--desk-line);
+  background: transparent;
+  color: var(--desk-ink-dim);
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.index-close:hover {
+  background: color-mix(in srgb, var(--desk-ink) 10%, transparent);
+  color: var(--desk-ink);
+}
+.index-close svg { width: 1.05rem; height: 1.05rem; }
+
+/* التبويبات: خط سفلي ذهبي للنشط — علامة واحدة، لا خلفية ولا وزن ولا لون معاً */
+.index-tabs {
+  display: flex;
+  padding-inline: 0.5rem;
+  border-bottom: 1px solid var(--desk-line);
+}
+.index-tab {
+  flex: 1;
+  padding: 0.6rem 0.2rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  background: transparent;
+  color: var(--desk-ink-dim);
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.index-tab:hover { color: var(--desk-ink); }
+.index-tab--active {
+  color: var(--gilt);
+  border-bottom-color: var(--gilt);
+}
+
+.index-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+  overscroll-behavior: contain;
+}
+.index-loading {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--desk-ink-dim);
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+.index-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.index-item:hover { background: color-mix(in srgb, var(--desk-ink) 8%, transparent); }
+/* «هنا أنت» في كل قائمة: نفس خيط السكة الذهبي — لغة واحدة للموضع */
+.index-item--current {
+  background: color-mix(in srgb, var(--gilt) 11%, transparent);
+  box-shadow: inset 2px 0 0 var(--gilt);
+}
+.index-badge {
+  flex: 0 0 2rem;
+  width: 2rem;
+  height: 2rem;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--desk-ink-dim);
+  border: 1px solid var(--desk-line);
+  border-radius: 50%;
+}
+.index-item--current .index-badge {
+  color: var(--gilt);
+  border-color: color-mix(in srgb, var(--gilt) 45%, transparent);
+}
+.index-name {
+  flex: 1;
+  text-align: start;
+  font-size: 1.65rem;
+  line-height: 1.55;
+}
+.index-text {
+  flex: 1;
+  text-align: start;
+  font-size: 0.9375rem;
+}
+.index-page {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--desk-ink-dim);
+  min-width: 2rem;
+  text-align: end;
+}
+
+.index-pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+  gap: 4px;
+  align-content: start;
+}
+.index-pageno {
+  padding: 0.4rem 0;
+  text-align: center;
+  border: 1px solid var(--desk-line);
+  border-radius: 7px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  color: var(--desk-ink-dim);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.index-pageno:hover { background: color-mix(in srgb, var(--desk-ink) 9%, transparent); color: var(--desk-ink); }
+.index-pageno.index-item--current {
+  color: var(--gilt);
+  border-color: color-mix(in srgb, var(--gilt) 50%, transparent);
+  background: color-mix(in srgb, var(--gilt) 12%, transparent);
+  box-shadow: none;
+}
+
+/* صف الإشارة: انتقال + حذف */
+.index-mark { padding: 0.12rem 0.25rem; gap: 0.3rem; }
+.index-mark-go {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: start;
+  padding: 0.2rem 0.3rem;
+  border: none;
+  border-radius: 7px;
+  color: inherit;
+  font-family: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.index-mark .index-badge { color: var(--gilt); border-color: color-mix(in srgb, var(--gilt) 35%, transparent); }
+.index-mark .index-badge svg { width: 0.95rem; height: 0.95rem; }
+.index-mark .index-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.index-mark-del {
+  flex: 0 0 1.7rem;
+  height: 1.7rem;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  color: var(--desk-ink-dim);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.14s ease, color 0.14s ease, background 0.14s ease;
+}
+.index-mark-del svg { width: 0.9rem; height: 0.9rem; }
+.index-mark-del:hover {
+  opacity: 1;
+  color: var(--alarm);
+  background: color-mix(in srgb, var(--alarm) 15%, transparent);
+}
+
+/* ---------- حوار مركزي (تسمية الإشارة) ---------- */
+.index-backdrop--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mark-card {
+  width: min(380px, 92vw);
+  background: var(--desk-raise);
+  color: var(--desk-ink);
+  border: 1px solid var(--desk-line);
+  border-top: 2px solid var(--gilt);
+  border-radius: 14px;
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 28px 70px rgb(0 0 0 / 0.55);
+  animation: drawer-in 0.2s ease;
+}
+.mark-title {
+  display: block;
+  margin-bottom: 0.8rem;
+  font-family: var(--face-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.mark-form { display: flex; flex-direction: column; gap: 0.8rem; }
+.mark-input {
+  border: 1px solid var(--desk-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, #000 25%, transparent);
+  color: var(--desk-ink);
+  padding: 0.55rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.9375rem;
+}
+.mark-input::placeholder { color: var(--desk-ink-dim); }
+.mark-input:focus { outline: 2px solid var(--gilt); outline-offset: 1px; }
+.mark-actions { display: flex; gap: 0.5rem; }
+
+/* ---------- لوحة التفسير: عمود مجاور للمصحف على جهة النهاية ---------- */
+.tafsir-panel {
+  grid-area: aside;
+  z-index: 40;
+  width: clamp(320px, 30vw, 440px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  background: var(--desk-raise);
+  border-inline-start: 1px solid var(--desk-line);
+  box-shadow: 24px 0 64px rgb(0 0 0 / 0.45);
+  color: var(--desk-ink);
+  animation: tafsir-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes tafsir-in {
+  from { transform: translateX(-18px); opacity: 0 }
+  to { transform: none; opacity: 1 }
+}
+.tafsir-head { display: flex; align-items: center; gap: 0.5rem; }
+.tafsir-surah {
+  font-size: 2rem;
+  line-height: 1.2;
+  color: var(--gilt);
+}
+.tafsir-ayah-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-inline-start: auto;
+}
+.tafsir-ayah-no {
+  font-size: 0.8125rem;
+  color: var(--desk-ink-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tafsir-tabs {
+  display: flex;
+  gap: 2px;
+  background: color-mix(in srgb, #000 24%, transparent);
+  border: 1px solid var(--desk-line);
+  border-radius: 9px;
+  padding: 2px;
+}
+.tafsir-tab {
+  flex: 1;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--desk-ink-dim);
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.tafsir-tab:hover { color: var(--desk-ink); }
+.tafsir-tab--active {
+  background: color-mix(in srgb, var(--gilt) 18%, transparent);
+  color: var(--gilt);
+  font-weight: 600;
+}
+.tafsir-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-inline-end: 0.4rem;
+  overscroll-behavior: contain;
+}
+/* متن التفسير بخط النسخ: قراءة طويلة تستحق خطاً للقراءة لا خط واجهة */
+.tafsir-text {
+  white-space: pre-line;
+  font-family: var(--face-display);
+  font-size: 1.0625rem;
+  line-height: 2.05;
+  text-align: justify;
+  color: color-mix(in srgb, var(--desk-ink) 92%, transparent);
+}
+.tafsir-status {
+  color: var(--desk-ink-dim);
+  font-size: 0.875rem;
+  text-align: center;
+  margin-top: 2rem;
+}
+.tafsir-status--error { color: var(--alarm); }
+
+/* الشاشات الضيقة: لا مكان لعمود ثالث — تنزل اللوحة صفاً تحت المسرح.
+   صفاً في الشبكة لا طبقة ثابتة فوقها: الورقة تتقلص ويبقى كل شيء مرئياً
+   (العتبة كذلك)، بدل أن تُقصّ الصفحة تحت ورقة عائمة. */
+@media (max-width: 900px) {
+  .app-shell--aside {
+    grid-template-columns: auto 1fr;
+    /* minmax(0,…) لا 1fr: بدونه لا ينكمش صف المسرح تحت مقاس محتواه فتُدفع
+       العتبة خارج النافذة */
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'rail stage'
+      'aside aside'
+      'ledge ledge';
+  }
+  .app-shell--focus.app-shell--aside {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'stage'
+      'aside';
+  }
+  .tafsir-panel {
+    width: auto;
+    height: 52vh;
+    border-inline-start: none;
+    border-top: 1px solid var(--desk-line);
+    box-shadow: 0 -18px 48px rgb(0 0 0 / 0.4);
+    animation: aside-up 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  @keyframes aside-up {
+    from { transform: translateY(14px); opacity: 0 }
+    to { transform: none; opacity: 1 }
+  }
+}
+
+/* ---------- لوحة البحث: بطاقة مركزية ---------- */
+.search-panel {
+  top: 8vh;
+  bottom: auto;
+  max-height: 80vh;
+  inset-inline-start: 50%;
+  transform: translateX(50%);
+  width: min(560px, 94vw);
+  border: 1px solid var(--desk-line);
+  border-top: 2px solid var(--gilt);
+  border-radius: 14px;
+  box-shadow: 0 28px 80px rgb(0 0 0 / 0.55);
+  animation: drawer-in 0.2s ease;
+}
+.search-panel .index-head { box-shadow: none; }
+.search-input {
+  width: calc(100% - 2rem);
+  margin: 0.8rem 1rem 0.3rem;
+  font-size: 1rem;
+}
+.search-count {
+  font-size: 0.8125rem;
+  color: var(--desk-ink-dim);
+  margin: 0.4rem 1rem 0.1rem;
+}
+
+/* نتيجة البحث: النص أولاً، والمرجع سطر خادم تحته */
+.search-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.search-hit:hover {
+  background: color-mix(in srgb, var(--desk-ink) 8%, transparent);
+}
+.search-hit-text {
+  font-family: var(--face-display);
+  font-size: 1.125rem;
+  line-height: 1.85;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.search-hit-ref {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.75rem;
+  color: var(--desk-ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.search-hit-surah {
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--gilt);
+}
+
+/* ============================================================================
+   ٧ — رحلتي (الأوراد): بطاقات مهمّة، كل بطاقة تقول ماذا تفعل الآن.
+   ========================================================================= */
+.wird-panel { width: min(460px, 96vw); }
+.wird-tabs { margin: 0; }
+.wird-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.85rem 0.9rem 1.2rem;
+  overscroll-behavior: contain;
+}
+.wird-today { display: flex; flex-direction: column; gap: 0.7rem; }
+
+.wird-card {
+  position: relative;
+  border: 1px solid var(--desk-line);
+  border-radius: 12px;
+  padding: 0.8rem 0.85rem;
+  margin-bottom: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: color-mix(in srgb, #000 14%, transparent);
+}
+.wird-today-card { margin-bottom: 0; }
+.wird-card--due { border-color: color-mix(in srgb, var(--alarm) 55%, transparent); }
+.wird-card--muted { opacity: 0.75; }
+
+/* ترويسة البطاقة: أيقونة الخط نفسه + عنوان — لا إيموجي ملوّن يكسر اللوحة */
+.wird-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--desk-ink-dim);
+}
+.wird-card-title svg { width: 1.05rem; height: 1.05rem; color: var(--gilt); }
+
+/* الجملة الحاكمة في البطاقة: هذه هي المعلومة، وبقية النص خدمها */
+.wird-big {
+  font-family: var(--face-display);
+  font-size: 1.25rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.wird-big strong { color: var(--gilt); font-weight: 700; }
+.wird-sub { font-size: 0.8125rem; line-height: 1.65; color: var(--desk-ink-dim); margin: 0; }
+.wird-hint { font-size: 0.75rem; line-height: 1.7; color: var(--desk-ink-dim); text-align: center; }
+.wird-empty { margin-top: 2.5rem; }
+.wird-cta { align-self: flex-start; }
+.wird-done {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--gilt);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.wird-error { color: var(--alarm); font-size: 0.875rem; line-height: 1.7; }
+.wird-ok { color: var(--gilt); font-size: 0.875rem; line-height: 1.7; white-space: pre-line; word-break: break-all; }
+/* صف أيقونات النسخ الاحتياطي المدمج */
+.wird-backup-row { align-items: center; }
+.wird-backup-row .icon-btn { cursor: pointer; }
+
+.wird-sec {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--desk-ink-dim);
+  margin: 1.1rem 0 0.5rem;
+}
+.wird-plans > section:first-child .wird-sec { margin-top: 0.2rem; }
+
+.wird-mini {
+  border-top: 1px solid var(--desk-line);
+  padding-top: 0.55rem;
+  margin-top: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.wird-mini--due { border-top-color: color-mix(in srgb, var(--alarm) 45%, transparent); }
+.wird-pending { margin-top: 0.35rem; }
+.wird-item-title { font-size: 0.9375rem; font-weight: 600; }
+
+/* التقييم الذاتي: ثلاثة أوزان، الممتاز وحده مُبرَز */
+.wird-grades { display: flex; gap: 0.35rem; }
+.wird-grade { flex: 1; font-size: 0.8125rem; padding-inline: 0.3rem; }
+.wird-grade--excellent { border-color: color-mix(in srgb, var(--gilt) 45%, transparent); color: var(--gilt); }
+.wird-grade--weak { color: var(--alarm); }
+
+.wird-trackbar {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #000 30%, transparent);
+  overflow: hidden;
+  margin-block: 0.5rem;
+}
+.wird-trackbar-fill {
+  height: 100%;
+  background: var(--gilt);
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+.wird-goal { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.7rem; }
+.wird-goal--active {
+  background: color-mix(in srgb, var(--gilt) 16%, transparent);
+  border-color: color-mix(in srgb, var(--gilt) 50%, transparent);
+  color: var(--gilt);
+  font-weight: 600;
+}
+
+.wird-modes { display: flex; flex-direction: column; gap: 0.5rem; }
+.wird-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: start;
+  border: 1px solid var(--desk-line);
+  border-radius: 11px;
+  padding: 0.7rem 0.8rem;
+  background: color-mix(in srgb, #000 14%, transparent);
+  color: var(--desk-ink);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.wird-mode:hover { border-color: color-mix(in srgb, var(--gilt) 45%, transparent); }
+.wird-mode strong { font-size: 0.9375rem; }
+.wird-mode span { font-size: 0.8125rem; line-height: 1.6; color: var(--desk-ink-dim); }
+.wird-mode--custom { cursor: default; }
+.wird-mode--custom:hover { border-color: var(--desk-line); }
+
+.wird-form { display: flex; flex-direction: column; gap: 0.55rem; }
+.wird-select {
+  width: 100%;
+  text-align: start;
+  font-family: inherit;
+  padding: 0.42rem 0.6rem;
+}
+.wird-range { display: flex; align-items: flex-end; gap: 0.5rem; flex-wrap: wrap; }
+.wird-range label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--desk-ink-dim);
+}
+.wird-num { width: 5rem; font-variant-numeric: tabular-nums; }
+.wird-remove {
+  position: absolute;
+  top: 0.5rem;
+  inset-inline-end: 0.5rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+}
+.wird-remove svg { width: 0.85rem; height: 0.85rem; }
+
+/* حلقة التقدم */
+.wird-ring-bg { fill: none; stroke: color-mix(in srgb, var(--desk-ink) 18%, transparent); stroke-width: 3; }
+.wird-ring-fg { fill: none; stroke: var(--gilt); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 0.4s ease; }
+/* في السكة تُرقَّق لتوازن سُمك ١٫٦ في بقية الأيقونات — أسرة واحدة */
+.rail-btn .wird-ring-bg,
+.rail-btn .wird-ring-fg { stroke-width: 2.2; }
+
+/* بشارة إتمام الورد */
+.wird-toast {
+  position: absolute;
+  bottom: 1.5rem;
+  inset-inline: 0;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: 92vw;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: var(--desk-raise);
+  border: 1px solid color-mix(in srgb, var(--gilt) 45%, transparent);
+  border-radius: 999px;
+  padding: 0.55rem 0.7rem 0.55rem 1.1rem;
+  box-shadow: 0 16px 44px rgb(0 0 0 / 0.5);
+  color: var(--desk-ink);
+  font-size: 0.9375rem;
+  animation: wird-toast-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.wird-toast svg { width: 1.15rem; height: 1.15rem; color: var(--gilt); flex: none; }
+@keyframes wird-toast-in {
+  from { transform: translateY(14px); opacity: 0 }
+  to { transform: none; opacity: 1 }
+}
+
+/* ---------- إحصائيات الرحلة ---------- */
+.wird-stats { display: flex; flex-direction: column; gap: 0.7rem; }
+.week-dots { display: flex; gap: 0.3rem; justify-content: space-between; margin-top: 0.5rem; }
+.week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.2rem;
+  border-radius: 8px;
+  flex: 1;
+}
+.week-day--today { background: color-mix(in srgb, var(--gilt) 12%, transparent); }
+.week-day-label { font-size: 0.6875rem; color: var(--desk-ink-dim); font-variant-numeric: tabular-nums; }
+.week-day--today .week-day-label { color: var(--gilt); }
+.week-marks { display: flex; gap: 3px; }
+.week-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--desk-ink) 16%, transparent);
+  display: inline-block;
+}
+.week-dot--read.on { background: var(--gilt); }
+.week-dot--hifz.on { background: #7fae8c; }
+.week-dot--review.on { background: var(--alarm); }
+
+.tree-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 4px; margin-top: 0.5rem; }
+.tree-cell {
+  aspect-ratio: 1;
+  border: 1px solid var(--desk-line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--desk-ink-dim);
+  font-size: 0.6875rem;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.12s ease;
+}
+.tree-cell:hover { transform: scale(1.14); }
+.tree-cell--1 { background: color-mix(in srgb, var(--gilt) 20%, transparent); color: var(--desk-ink); }
+.tree-cell--2 { background: color-mix(in srgb, var(--gilt) 52%, transparent); color: #1a1810; }
+.tree-cell--3 { background: var(--gilt); color: #17150e; font-weight: 600; }
+.tree-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
+.wird-legend { display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.5rem; }
+.wird-legend i { margin-inline-start: 0.5rem; }
+.wird-legend i:first-child { margin-inline-start: 0; }
+.wird-switch { display: flex; align-items: center; gap: 0.45rem; font-size: 0.875rem; }
+
+/* ============================================================================
+   ٨ — شاشة الإقلاع وبوابة السلامة
+   كانت صفحة Tailwind خاماً (رمادي/أحمر) لا تعرف الثيم — وهي أول ما يراه
+   المستخدم في كل تشغيل. الآن هي افتتاحية التطبيق: غرفة مظلمة وخيط ذهبي
+   يمتلئ بينما تُتحقَّق بصمات الأصول.
+   ========================================================================= */
+.boot {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: var(--desk);
+  background-image: radial-gradient(
+    ellipse 60% 50% at 50% 45%,
+    color-mix(in srgb, var(--desk-raise) 60%, transparent),
+    transparent 70%
+  );
+  text-align: center;
+}
+.boot-mark {
+  font-family: var(--face-display);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--desk-ink);
+}
+/* الخيط الذهبي الشعري تحت الاسم — نفس خيط حرف المصحف في السكة */
+.boot-rule {
+  width: min(320px, 70vw);
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--desk-ink) 12%, transparent);
+  overflow: hidden;
+}
+.boot-rule-fill {
+  height: 100%;
+  background: var(--gilt);
+  border-radius: 2px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--gilt) 60%, transparent);
+  transition: width 0.2s ease;
+}
+.boot-note {
+  color: var(--desk-ink-dim);
+  font-size: 0.875rem;
+  line-height: 1.8;
+  max-width: 42ch;
+}
+.boot-count {
+  color: var(--desk-ink-dim);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.boot--fail .boot-mark { color: var(--alarm); font-size: clamp(1.35rem, 3.4vw, 1.75rem); }
+.boot-icon { color: var(--alarm); }
+.boot-icon svg { width: 2.75rem; height: 2.75rem; }
+.boot-files {
+  max-height: 12rem;
+  width: min(620px, 92vw);
+  overflow: auto;
+  border: 1px solid var(--desk-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, #000 28%, transparent);
+  padding: 0.7rem 0.85rem;
+  text-align: start;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.9;
+  color: var(--alarm);
+}
