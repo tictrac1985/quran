@@ -1,0 +1,9 @@
+node_modules
+dist
+tmp
+src-tauri/target
+src-tauri/gen
+src-tauri/assets
+src-tauri/icons
+*.local
+.DS_Store
