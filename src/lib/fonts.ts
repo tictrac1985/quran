@@ -3,20 +3,42 @@
 //
 // لماذا الانتظار إلزامي؟ رموز char محارف في مجال الاستخدام الخاص (PUA) —
 // أي عرض لحظي بخط احتياطي يُظهر مربعات فارغة أو حروفاً مشوهة، وهذا غير مقبول
-// في نص المصحف ولو لإطار واحد. لذا font-display: block + document.fonts.load.
+// في نص المصحف ولو لإطار واحد. لذا font-display: block + FontFace.load.
 
 import { assetUrl, SURAH_NAMES_FONT_PATH } from './assets'
 
-const injected = new Set<string>()
+const registered = new Map<string, FontFace>()
+const loading = new Map<string, Promise<void>>()
 
-function injectFace(family: string, url: string, format: string): void {
-  if (injected.has(family)) return
-  injected.add(family)
-  const style = document.createElement('style')
-  style.dataset.mushafFont = family
-  style.textContent =
-    `@font-face{font-family:'${family}';src:url('${url}') format('${format}');font-display:block;}`
-  document.head.appendChild(style)
+/** تحميل عائلة مرة واحدة مع السماح بالمحاولة مجدداً إن فشل التحميل السابق. */
+function loadFace(family: string, url: string, format: string): Promise<void> {
+  if (registered.has(family)) return Promise.resolve()
+  const hit = loading.get(family)
+  if (hit) return hit
+
+  // Tauri يضيف nonce إلى style-src في البناء النهائي، لذلك تُحظر عناصر <style>
+  // الديناميكية حتى مع unsafe-inline. واجهة FontFace تحمّل الأصل عبر font-src مباشرة
+  // ولا تُضعف CSP أو تسمح بعرض محرف QCF قبل اكتمال خطه.
+  const face = new FontFace(
+    family,
+    `url(${JSON.stringify(url)}) format(${JSON.stringify(format)})`,
+    { display: 'block' },
+  )
+  const cached = face
+    .load()
+    .then((loaded) => {
+      document.fonts.add(loaded)
+      registered.set(family, loaded)
+    })
+    .catch((error: unknown) => {
+      document.fonts.delete(face)
+      throw error
+    })
+    .finally(() => {
+      if (loading.get(family) === cached) loading.delete(family)
+    })
+  loading.set(family, cached)
+  return cached
 }
 
 export const SURAH_NAMES_FAMILY = 'surah-name-v2'
@@ -28,27 +50,29 @@ export const SURAH_NAMES_FAMILY = 'surah-name-v2'
  */
 export const surahNameText = (n: number) => `surah${String(n).padStart(3, '0')}`
 
+const QCF4_HAFS_FAMILY = /^QCF4_Hafs_(?:0[1-9]|[1-3][0-9]|4[0-7])$/
+
 /** ملف الخط لكل عائلة QCF4: خط الزخارف QBSML بلا لاحقة _W */
-export const qcf4FontFile = (family: string): string =>
-  family === 'QCF4_QBSML' ? 'fonts/QCF4_QBSML.woff2' : `fonts/${family}_W.woff2`
+export const qcf4FontFile = (family: string): string => {
+  if (family === 'QCF4_QBSML') return 'fonts/QCF4_QBSML.woff2'
+  if (!QCF4_HAFS_FAMILY.test(family)) throw new Error(`عائلة خط مصحف غير معتمدة: ${family}`)
+  return `fonts/${family}_W.woff2`
+}
 
 /**
- * يحقن ويحمّل كل عائلات الخطوط التي تطلبها صفحة (خطها الأساسي + خطوط كلماتها
+ * يسجّل ويحمّل كل عائلات الخطوط التي تطلبها صفحة (خطها الأساسي + خطوط كلماتها
  * كالبسملة من QCF4_Hafs_01 واللافتات من QCF4_QBSML). يجب أن يكتمل قبل أول رسم.
  */
 export async function ensureQcf4Fonts(families: Iterable<string>): Promise<void> {
   const fams = [...new Set(families)]
-  for (const fam of fams) injectFace(fam, assetUrl(qcf4FontFile(fam)), 'woff2')
-  // خط أسماء السور: أثاث الترويسة جزء من رسم الصفحة — يُحمَّل معها دائماً
-  injectFace(SURAH_NAMES_FAMILY, assetUrl(SURAH_NAMES_FONT_PATH), 'truetype')
   await Promise.all([
-    ...fams.map((f) => document.fonts.load(`16px '${f}'`)),
-    document.fonts.load(`16px '${SURAH_NAMES_FAMILY}'`),
+    ...fams.map((f) => loadFace(f, assetUrl(qcf4FontFile(f)), 'woff2')),
+    // خط أسماء السور: أثاث الترويسة جزء من رسم الصفحة — يُحمَّل معها دائماً
+    loadFace(SURAH_NAMES_FAMILY, assetUrl(SURAH_NAMES_FONT_PATH), 'truetype'),
   ])
 }
 
 /** أثاث الفهرس والترويسة: خط أسماء السور فقط */
 export async function ensureExtraFonts(): Promise<void> {
-  injectFace(SURAH_NAMES_FAMILY, assetUrl(SURAH_NAMES_FONT_PATH), 'truetype')
-  await document.fonts.load(`16px '${SURAH_NAMES_FAMILY}'`)
+  await loadFace(SURAH_NAMES_FAMILY, assetUrl(SURAH_NAMES_FONT_PATH), 'truetype')
 }

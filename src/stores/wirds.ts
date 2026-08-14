@@ -11,13 +11,7 @@
 // ورد المراجعة = آلي بالكامل (lib/srs) — لا يُنشئه المستخدم.
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import {
-  dateKey,
-  dateKeyAfter,
-  schedule,
-  REVIEW_BACKLOG_LIMIT,
-  type Grade,
-} from '../lib/srs'
+import { dateKey, dateKeyAfter, schedule, REVIEW_BACKLOG_LIMIT, type Grade } from '../lib/srs'
 import { surahTotal } from '../lib/ayahCounts'
 
 const LAST_PAGE = 604
@@ -129,13 +123,26 @@ export function planToday(plan: ReadingPlan, startPos: number, today: string) {
 }
 
 /** مقطع الحفظ الحالي من المسار (فارغ = المسار مكتمل) */
-export function currentSlice(track: HifzTrack | null): { surah: number; from: number; to: number } | null {
+export function currentSlice(
+  track: HifzTrack | null,
+): { surah: number; from: number; to: number } | null {
   if (!track) return null
   const surah = track.queue[track.index]
   if (surah === undefined) return null
   const from = track.nextAyah
   const to = Math.min(surahTotal(surah), from + track.pace - 1)
   return { surah, from, to }
+}
+
+/**
+ * يقدّم موضع الختمة عبر الصفحات المقروءة المتصلة به فقط.
+ * زيارة صفحة بعيدة (بحث/فهرس/استطلاع) لا تعني قراءة كل ما قبلها.
+ */
+export function advanceReadingPosition(position: number, visitedPages: readonly number[]): number {
+  const visited = new Set(visitedPages)
+  let next = Math.min(LAST_PAGE + 1, Math.max(1, Math.round(position)))
+  while (next <= LAST_PAGE && visited.has(next)) next += 1
+  return next
 }
 
 export const useWirdsStore = create<WirdsState>()(
@@ -171,8 +178,14 @@ export const useWirdsStore = create<WirdsState>()(
         set((s) =>
           s.readingPlan
             ? {
-                readingPlan: { ...s.readingPlan, position: Math.min(LAST_PAGE + 1, Math.max(1, Math.round(p))) },
-                readingToday: { day: dateKey(), startPos: Math.min(LAST_PAGE + 1, Math.max(1, Math.round(p))) },
+                readingPlan: {
+                  ...s.readingPlan,
+                  position: Math.min(LAST_PAGE + 1, Math.max(1, Math.round(p))),
+                },
+                readingToday: {
+                  day: dateKey(),
+                  startPos: Math.min(LAST_PAGE + 1, Math.max(1, Math.round(p))),
+                },
               }
             : {},
         ),
@@ -184,10 +197,12 @@ export const useWirdsStore = create<WirdsState>()(
         const visitedToday = sameDay ? s.visitedToday : []
         const startPos = sameDay ? s.readingToday.startPos : (s.readingPlan?.position ?? page)
         const visits = visitedToday.includes(page) ? visitedToday : [...visitedToday, page]
-        // موضع الختمة يتقدم مع كل صفحة يتجاوزها القارئ
+        // لا يتقدم موضع الختمة إلا عبر سلسلة مقروءة متصلة بموضعه الحالي؛
+        // مجرد القفز إلى صفحة بعيدة لا يطوي الصفحات الواقعة بينهما.
         let plan = s.readingPlan
-        if (plan && page >= plan.position && plan.position <= LAST_PAGE) {
-          plan = { ...plan, position: Math.min(LAST_PAGE + 1, page + 1) }
+        if (plan && plan.position <= LAST_PAGE) {
+          const position = advanceReadingPosition(plan.position, visits)
+          if (position !== plan.position) plan = { ...plan, position }
         }
         set({
           readingPlan: plan,
@@ -207,7 +222,9 @@ export const useWirdsStore = create<WirdsState>()(
       stopTrack: () => set({ hifzTrack: null }),
 
       setPace: (pace) =>
-        set((s) => (s.hifzTrack ? { hifzTrack: { ...s.hifzTrack, pace: Math.min(15, Math.max(1, pace)) } } : {})),
+        set((s) =>
+          s.hifzTrack ? { hifzTrack: { ...s.hifzTrack, pace: Math.min(15, Math.max(1, pace)) } } : {},
+        ),
 
       confirmSlice: (grade) => {
         const s = get()

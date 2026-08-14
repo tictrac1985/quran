@@ -21,7 +21,19 @@ interface WordSpanProps {
   onSelect?: (id: string, verseKey: string) => void
 }
 
-export function WordSpan({ id, glyph, verseKey, isEnd, fontFamily, selected, hit, onSelect }: WordSpanProps) {
+export function WordSpan({
+  id,
+  glyph,
+  verseKey,
+  isEnd,
+  fontFamily,
+  selected,
+  hit,
+  onSelect,
+}: WordSpanProps) {
+  const [surah, ayah] = verseKey.split(':')
+  const interactive = Boolean(onSelect)
+  const activate = () => onSelect?.(id, verseKey)
   return (
     <span
       className={
@@ -32,7 +44,16 @@ export function WordSpan({ id, glyph, verseKey, isEnd, fontFamily, selected, hit
       style={{ fontFamily }}
       data-word-id={id}
       data-verse={verseKey}
-      onClick={() => onSelect?.(id, verseKey)}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-pressed={interactive ? selected : undefined}
+      aria-label={interactive ? `فتح تفسير كلمة من السورة ${surah}، الآية ${ayah}` : undefined}
+      onClick={activate}
+      onKeyDown={(event) => {
+        if (!interactive || (event.key !== 'Enter' && event.key !== ' ')) return
+        event.preventDefault()
+        activate()
+      }}
     >
       {glyph}
     </span>

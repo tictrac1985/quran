@@ -32,7 +32,12 @@ export function IntegrityGate({ children }: { children: ReactNode }) {
     })
       .then((report) => {
         if (cancelled) return
-        const pass = report.manifestSelfOk && report.filesOk
+        const pass =
+          report.manifestSchemaOk &&
+          report.inventoryOk &&
+          report.manifestSelfOk &&
+          report.bundleTrusted &&
+          report.filesOk
         setState(pass ? { kind: 'ok', report } : { kind: 'fail', report })
       })
       .catch((e: unknown) => {
@@ -48,7 +53,13 @@ export function IntegrityGate({ children }: { children: ReactNode }) {
     return (
       <div className="boot" dir="rtl">
         <h1 className="boot-mark">ورتل القرآن</h1>
-        <div className="boot-rule" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div
+          className="boot-rule"
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
           <div className="boot-rule-fill" style={{ width: `${pct}%` }} />
         </div>
         <p className="boot-note">تُطابَق بصمات أصول المصحف قبل عرض أي حرف</p>
@@ -72,9 +83,11 @@ export function IntegrityGate({ children }: { children: ReactNode }) {
         <p className="boot-note">
           {state.error
             ? `تعذر إتمام الفحص: ${state.error}`
-            : state.report && !state.report.manifestSelfOk
-              ? 'بصمة حزمة المانيفست لا تطابق محتواه — يُحتمل عبث بملف الفهرس نفسه.'
-              : `${arNum(failed.length)} من الملفات لا تطابق بصمتها المعتمدة.`}
+            : state.report && !state.report.bundleTrusted
+              ? 'بصمة الحزمة ليست ضمن البصمات المعتمدة في هذا الإصدار — أُوقف العرض احتياطاً.'
+              : state.report && !state.report.manifestSelfOk
+                ? 'بصمة حزمة المانيفست لا تطابق محتواه — يُحتمل عبث بملف الفهرس نفسه.'
+                : `${arNum(failed.length)} من الملفات لا تطابق بصمتها المعتمدة.`}
         </p>
         {failed.length > 0 && (
           <ul className="boot-files" dir="ltr">

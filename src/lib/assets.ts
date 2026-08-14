@@ -6,9 +6,21 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 
 const DEV_PREFIX = '/mushaf-assets'
 
+/** خطأ HTTP من طبقة الأصول؛ يتيح للمستودعات تمييز 404 دون تحليل نص الرسالة. */
+export class AssetFetchError extends Error {
+  constructor(
+    public readonly relPath: string,
+    public readonly status: number,
+    detail: string,
+    url: string,
+  ) {
+    super(`تعذر تحميل الأصل ${relPath} (HTTP ${status}) [${detail}] من ${url.slice(0, 160)}`)
+    this.name = 'AssetFetchError'
+  }
+}
+
 /** هل نعمل داخل نافذة Tauri (سطح المكتب)؟ */
-export const isTauri = () =>
-  typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+export const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
 let tauriBase: string | null = null
 
@@ -25,12 +37,12 @@ export function assetUrl(relPath: string): string {
 }
 
 /** جلب JSON لأصل ثابت مع خطأ واضح عند الفشل */
-export async function fetchJson<T>(relPath: string): Promise<T> {
+export async function fetchJson<T>(relPath: string, signal?: AbortSignal): Promise<T> {
   const url = assetUrl(relPath)
-  const res = await fetch(url, { cache: 'no-store' })
+  const res = await fetch(url, { cache: 'no-store', signal })
   if (!res.ok) {
     const body = (await res.text().catch(() => '')).slice(0, 300)
-    throw new Error(`تعذر تحميل الأصل ${relPath} (HTTP ${res.status}) [${body}] من ${url.slice(0, 160)}`)
+    throw new AssetFetchError(relPath, res.status, body, url)
   }
   return (await res.json()) as T
 }

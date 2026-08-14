@@ -12,11 +12,11 @@ export interface Qcf4Word {
   font: string
   /** النص المرجعي — لا يُعرض أبداً */
   text: string
-  /** word = كلمة · end = علامة نهاية آية · bismillah · surah_header */
-  type: 'word' | 'end' | 'bismillah' | 'surah_header'
+  /** word = كلمة · end = علامة نهاية آية · quarter = علامة ربع · أثاث الصفحة */
+  type: 'word' | 'end' | 'quarter' | 'bismillah' | 'surah_header'
   verse_key?: string
   sura?: number
-  position?: number
+  position?: number | null
 }
 
 /** سطر واحد في صفحة QCF4 — نوعه من نوع أول كلماته */

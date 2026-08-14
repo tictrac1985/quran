@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "صلاحيات النافذة الرئيسية الافتراضية",
+  "description": "أقل صلاحيات لازمة للنافذة الرئيسية: حوار حفظ النسخة الاحتياطية فقط",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:allow-save"]
+  "permissions": ["dialog:allow-save"]
 }

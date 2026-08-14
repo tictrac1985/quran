@@ -12,14 +12,27 @@ export interface VerseText {
 }
 
 let cache: Promise<Record<string, VerseText>> | null = null
-export const loadVersesText = () =>
-  (cache ??= fetchJson<Record<string, VerseText>>('verses-text.json'))
+export function loadVersesText(): Promise<Record<string, VerseText>> {
+  if (cache) return cache
+  const request = fetchJson<Record<string, VerseText>>('verses-text.json')
+  const cached = request.catch((error: unknown) => {
+    if (cache === cached) cache = null
+    throw error
+  })
+  cache = cached
+  return cached
+}
 
 /** نفس تطبيع build_tafsir.py حرفياً — أي اختلاف يكسر التطابق */
 export function normalizeArabic(s: string): string {
   let out = s.normalize('NFKC')
-  out = out.replace(/[ً-ْٰـۖ-ۭ۪-ۻ]/g, '')
-  out = out.replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+  // النطاقات نفسها في build_tafsir.py، مكتوبة بنقاط الترميز لئلا تبدو محارف
+  // الضبط المجمعة كأنها أحرف مستقلة مضللة؛ النتيجة الحرفية لا تتغير.
+  out = out.replace(/[\u064B-\u0652\u0670\u0640]|[\u06D6-\u06ED]|[\u06EA-\u06FB]/gu, '')
+  out = out
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
   out = out.replace(/[^ء-غف-ي٠-٩\s]/g, ' ')
   return out.replace(/\s+/g, ' ').trim()
 }

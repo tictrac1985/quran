@@ -1,23 +1,22 @@
-// فهرس المصحف — سور / أجزاء / أحزاب / صفحات.
-// أسماء السور تُعرض بمحارف surah-name-v2 (ligature) — لا نص عربي يدوي لاسم سورة؛
-// تسميات الأجزاء والأحزاب نص واجهة (كروم) وليست نصاً قرآنياً.
 import { useEffect, useState } from 'react'
 import { juzLabel, loadMeta } from '../../lib/meta'
 import { ensureExtraFonts, SURAH_NAMES_FAMILY, surahNameText } from '../../lib/fonts'
 import { LAST_PAGE, useReaderStore } from '../../stores/reader'
 import type { MetaEntry, MushafMeta } from '../../types/mushaf'
-import { IconClose, IconStarFilled } from '../icons/Icons'
+import { IconChevron, IconStarFilled, IconClose } from '../icons/Icons'
+import { Drawer, IconButton, TabPanel, Tabs } from '../ui'
 
 type Tab = 'surahs' | 'juz' | 'hizb' | 'pages' | 'marks'
 
-const TABS: { id: Tab; label: string }[] = [
+const TABS = [
   { id: 'surahs', label: 'السور' },
   { id: 'juz', label: 'الأجزاء' },
   { id: 'hizb', label: 'الأحزاب' },
   { id: 'pages', label: 'الصفحات' },
   { id: 'marks', label: 'الإشارات' },
-]
+] as const
 
+const TABS_ID = 'mushaf-index'
 const arNum = (n: number) => n.toLocaleString('ar-EG')
 
 interface IndexPanelProps {
@@ -31,12 +30,11 @@ export function IndexPanel({ currentPage, onGo, onClose }: IndexPanelProps) {
   const [tab, setTab] = useState<Tab>('surahs')
   const { bookmarks, removeBookmark } = useReaderStore()
 
-  // الميتا + خط أسماء السور معاً قبل أول رسم — لا محرف يظهر قبل خطه
   useEffect(() => {
     let cancelled = false
     Promise.all([loadMeta(), ensureExtraFonts()])
-      .then(([m]) => {
-        if (!cancelled) setMeta(m)
+      .then(([value]) => {
+        if (!cancelled) setMeta(value)
       })
       .catch(() => {})
     return () => {
@@ -44,120 +42,133 @@ export function IndexPanel({ currentPage, onGo, onClose }: IndexPanelProps) {
     }
   }, [])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const isCurrent = (entries: MetaEntry[], index: number) =>
+    currentPage >= entries[index].page &&
+    (index + 1 >= entries.length || currentPage < entries[index + 1].page)
 
-  // المدخل الحاوي للصفحة الحالية: بدايته ≤ الحالية < بداية الذي يليه
-  const isCurrent = (entries: MetaEntry[], i: number) =>
-    currentPage >= entries[i].page &&
-    (i + 1 >= entries.length || currentPage < entries[i + 1].page)
+  const go = (page: number) => {
+    onGo(page)
+    onClose()
+  }
 
   const entryList = (entries: MetaEntry[], label: (n: number) => string, glyph: boolean) => (
-    <div className="index-list">
-      {entries.map((e, i) => (
-        <button
-          key={e.n}
-          className={'index-item' + (isCurrent(entries, i) ? ' index-item--current' : '')}
-          onClick={() => onGo(e.page)}
-        >
-          <span className="index-badge">{arNum(e.n)}</span>
-          {glyph ? (
-            <span className="index-name" style={{ fontFamily: SURAH_NAMES_FAMILY }}>
-              {surahNameText(e.n)}
-            </span>
-          ) : (
-            <span className="index-text">{label(e.n)}</span>
-          )}
-          <span className="index-page">{arNum(e.page)}</span>
-        </button>
-      ))}
+    <div className="index-v2__list">
+      {entries.map((entry, index) => {
+        const current = isCurrent(entries, index)
+        return (
+          <button
+            type="button"
+            key={entry.n}
+            className="index-v2__item"
+            data-current={current || undefined}
+            aria-current={current ? 'page' : undefined}
+            onClick={() => go(entry.page)}
+          >
+            <span className="index-v2__number">{arNum(entry.n)}</span>
+            {glyph ? (
+              <>
+                <span className="ui-sr-only">سورة رقم {arNum(entry.n)}</span>
+                <span
+                  className="index-v2__surah"
+                  aria-hidden="true"
+                  style={{ fontFamily: SURAH_NAMES_FAMILY }}
+                >
+                  {surahNameText(entry.n)}
+                </span>
+              </>
+            ) : (
+              <span className="index-v2__label">{label(entry.n)}</span>
+            )}
+            <span className="index-v2__page">صفحة {arNum(entry.page)}</span>
+            <IconChevron aria-hidden="true" />
+          </button>
+        )
+      })}
     </div>
   )
 
-  return (
-    <div className="index-backdrop" onClick={onClose}>
-      <div className="index-panel" dir="rtl" onClick={(e) => e.stopPropagation()}>
-        <div className="index-head">
-          <strong>فهرس المصحف</strong>
-          <button className="index-close" onClick={onClose} aria-label="إغلاق الفهرس">
-            <IconClose />
-          </button>
+  let content
+  if (tab === 'marks') {
+    content =
+      bookmarks.length === 0 ? (
+        <div className="ui-empty-state">
+          <IconStarFilled />
+          <h3>لم تحفظ إشارات بعد</h3>
+          <p>احفظ موضعك من زر النجمة، وسيظهر هنا للعودة إليه بسرعة.</p>
         </div>
-        <div className="index-tabs">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              className={'index-tab' + (tab === t.id ? ' index-tab--active' : '')}
-              onClick={() => setTab(t.id)}
+      ) : (
+        <div className="index-v2__list">
+          {bookmarks.map((bookmark) => (
+            <div
+              className="index-v2__bookmark"
+              data-current={bookmark.page === currentPage || undefined}
+              key={bookmark.id}
             >
-              {t.label}
-            </button>
+              <button
+                type="button"
+                className="index-v2__bookmark-main"
+                onClick={() => go(bookmark.page)}
+              >
+                <span className="index-v2__number index-v2__number--star">
+                  <IconStarFilled />
+                </span>
+                <span className="index-v2__label">{bookmark.name}</span>
+                <span className="index-v2__page">صفحة {arNum(bookmark.page)}</span>
+              </button>
+              <IconButton
+                label={`حذف الإشارة ${bookmark.name}`}
+                icon={<IconClose />}
+                variant="danger"
+                onClick={() => removeBookmark(bookmark.id)}
+              />
+            </div>
           ))}
         </div>
-        {tab === 'marks' ? (
-          <div className="index-list">
-            {bookmarks.length === 0 ? (
-              <p className="index-loading">
-                لا إشارات بعد.
-                <br />
-                احفظ موضعك من زر النجمة في سكة الأدوات، وستجده هنا.
-              </p>
-            ) : (
-              bookmarks.map((b) => (
-                <div
-                  key={b.id}
-                  className={
-                    'index-item index-mark' + (b.page === currentPage ? ' index-item--current' : '')
-                  }
-                >
-                  <button className="index-mark-go" onClick={() => onGo(b.page)}>
-                    <span className="index-badge">
-                      <IconStarFilled />
-                    </span>
-                    <span className="index-text">{b.name}</span>
-                    <span className="index-page">{arNum(b.page)}</span>
-                  </button>
-                  <button
-                    className="index-mark-del"
-                    onClick={() => removeBookmark(b.id)}
-                    title="حذف الإشارة"
-                    aria-label={`حذف الإشارة ${b.name}`}
-                  >
-                    <IconClose />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        ) : !meta ? (
-          <div className="index-list">
-            <p className="index-loading">…</p>
-          </div>
-        ) : tab === 'surahs' ? (
-          entryList(meta.surahs, () => '', true)
-        ) : tab === 'juz' ? (
-          entryList(meta.juz, juzLabel, false)
-        ) : tab === 'hizb' ? (
-          entryList(meta.hizb, (n) => `الحزب ${arNum(n)}`, false)
-        ) : (
-          <div className="index-list index-pages">
-            {Array.from({ length: LAST_PAGE }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                className={'index-pageno' + (p === currentPage ? ' index-item--current' : '')}
-                onClick={() => onGo(p)}
-              >
-                {arNum(p)}
-              </button>
-            ))}
-          </div>
-        )}
+      )
+  } else if (!meta) {
+    content = (
+      <div className="ui-loading" role="status">
+        <span /> جارٍ تجهيز الفهرس
       </div>
-    </div>
+    )
+  } else if (tab === 'surahs') {
+    content = entryList(meta.surahs, () => '', true)
+  } else if (tab === 'juz') {
+    content = entryList(meta.juz, juzLabel, false)
+  } else if (tab === 'hizb') {
+    content = entryList(meta.hizb, (n) => `الحزب ${arNum(n)}`, false)
+  } else {
+    content = (
+      <div className="index-v2__pages">
+        {Array.from({ length: LAST_PAGE }, (_, index) => index + 1).map((page) => (
+          <button
+            type="button"
+            key={page}
+            className="index-v2__page-button"
+            data-current={page === currentPage || undefined}
+            aria-current={page === currentPage ? 'page' : undefined}
+            aria-label={`صفحة ${arNum(page)}`}
+            onClick={() => go(page)}
+          >
+            {arNum(page)}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <Drawer
+      title="فهرس المصحف"
+      description={`موضعك الحالي: صفحة ${arNum(currentPage)}`}
+      onClose={onClose}
+      size="lg"
+      className="index-v2"
+    >
+      <Tabs items={TABS} value={tab} onChange={setTab} label="أقسام الفهرس" idBase={TABS_ID} />
+      <TabPanel idBase={TABS_ID} tabId={tab} className="index-v2__panel">
+        {content}
+      </TabPanel>
+    </Drawer>
   )
 }

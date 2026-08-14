@@ -4,7 +4,7 @@
 // البداية، والمسرح، والعتبة السفلية. كانت السكة والشريط السفلي عنصرين مطلقين
 // فوق المسرح، فكان الشريط يقصّ أسفل الورقة (دائرة رقم الصفحة) وكان 100cqh
 // للمسرح يحسب مساحةً مغطاة. بالشبكة صار المسرح يساوي ما يُرى منه فعلاً.
-import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as RPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { LAST_PAGE, useReaderStore, type Theme } from '../../stores/reader'
 import { dueReviews, planToday, useWirdsStore } from '../../stores/wirds'
 import { dateKey } from '../../lib/srs'
@@ -17,7 +17,8 @@ import { MushafPage } from '../MushafPage/MushafPage'
 import { IndexPanel } from '../Index/IndexPanel'
 import { TafsirPanel } from '../Tafsir/TafsirPanel'
 import { SearchPanel } from '../Search/SearchPanel'
-import { ProgressRing, WirdPanel } from '../Wird/WirdPanel'
+import { WirdPanel } from '../Wird/WirdPanel'
+import { Button, Dialog, Drawer, IconButton, ProgressRing } from '../ui'
 import {
   IconClose,
   IconFocus,
@@ -34,6 +35,7 @@ import {
   IconSpread,
   IconStar,
   IconStarFilled,
+  IconSettings,
   IconSun,
 } from '../icons/Icons'
 
@@ -46,48 +48,73 @@ const arNum = (n: number) => n.toLocaleString('ar-EG')
 /** ——— التوقيع: خيط حرف المصحف ———
  * حافة كتلة الورق في المصحف المطبوع تُري القارئ موضعه من الختمة بنظرة واحدة.
  * هنا الخيط نفسه: شُرَط الأجزاء الثلاثين، وقطعة ذهبية عند موضعك، وسحبٌ ينتقل. */
-function ForeEdge({ page, meta, onGo }: { page: number; meta: MushafMeta | null; onGo: (p: number) => void }) {
-  const ref = useRef<HTMLButtonElement>(null)
-  const [hover, setHover] = useState<{ page: number; top: number } | null>(null)
-
-  const pageAt = (clientY: number) => {
-    const el = ref.current
-    if (!el) return null
-    const r = el.getBoundingClientRect()
-    const t = Math.min(1, Math.max(0, (clientY - r.top) / r.height))
-    return { page: Math.min(LAST_PAGE, Math.max(1, Math.round(t * (LAST_PAGE - 1)) + 1)), top: t * r.height }
-  }
-
-  const onMove = (e: RPointerEvent<HTMLButtonElement>) => {
-    const at = pageAt(e.clientY)
-    if (at) setHover(at)
-    // زر الفأرة مضغوط ⇒ سحب مباشر عبر الختمة
-    if (at && e.buttons === 1) onGo(at.page)
-  }
-
+function ForeEdge({
+  page,
+  meta,
+  onGo,
+}: {
+  page: number
+  meta: MushafMeta | null
+  onGo: (p: number) => void
+}) {
   return (
-    <button
-      ref={ref}
-      className="fore-edge"
-      aria-label={`موضعك من المصحف: صفحة ${arNum(page)} من ${arNum(LAST_PAGE)} — اسحب للانتقال`}
-      data-label={hover ? `صفحة ${arNum(hover.page)}` : `صفحة ${arNum(page)} من ${arNum(LAST_PAGE)}`}
-      style={hover ? ({ '--label-top': `${hover.top}px` } as React.CSSProperties) : undefined}
-      onPointerMove={onMove}
-      onPointerLeave={() => setHover(null)}
-      onPointerDown={(e) => {
-        const at = pageAt(e.clientY)
-        if (at) onGo(at.page)
-      }}
-    >
-      <span className="fore-edge-track">
+    <div className="reader-progress" data-label={`صفحة ${arNum(page)} من ${arNum(LAST_PAGE)}`}>
+      <span className="reader-progress__ticks" aria-hidden="true">
         {meta?.juz.map((j) => (
           <i
             key={j.n}
-            className="fore-edge-juz"
+            className="reader-progress__tick"
             style={{ top: `${((j.page - 1) / (LAST_PAGE - 1)) * 100}%` }}
           />
         ))}
-        <span className="fore-edge-mark" style={{ top: `${((page - 1) / (LAST_PAGE - 1)) * 100}%` }} />
+      </span>
+      <input
+        className="reader-progress__range"
+        type="range"
+        min={1}
+        max={LAST_PAGE}
+        value={page}
+        aria-label="الانتقال السريع بين صفحات المصحف"
+        aria-valuetext={`صفحة ${arNum(page)} من ${arNum(LAST_PAGE)}`}
+        onChange={(event) => onGo(Number(event.target.value))}
+      />
+      <span className="reader-progress__value" aria-hidden="true">
+        {arNum(page)}
+      </span>
+    </div>
+  )
+}
+
+function NavAction({
+  label,
+  shortLabel,
+  icon,
+  active = false,
+  pressed,
+  onClick,
+  className,
+}: {
+  label: string
+  shortLabel: string
+  icon: ReactNode
+  active?: boolean
+  pressed?: boolean
+  onClick: () => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      className={['reader-nav-action', className].filter(Boolean).join(' ')}
+      data-active={active || undefined}
+      aria-label={label}
+      aria-pressed={pressed}
+      onClick={onClick}
+    >
+      <span className="reader-nav-action__icon">{icon}</span>
+      <span className="reader-nav-action__label">{shortLabel}</span>
+      <span className="reader-nav-action__tooltip" role="tooltip">
+        {label}
       </span>
     </button>
   )
@@ -115,15 +142,24 @@ export function Reader() {
   } = useReaderStore()
   const report = useIntegrityReport()
   // quiet: تحديد من نتيجة بحث — يظلّل الآية كاملة بلا فتح لوحة التفسير
-  const [selected, setSelected] = useState<{ id: string; verseKey: string; quiet?: boolean } | null>(null)
+  const [selected, setSelected] = useState<{ id: string; verseKey: string; quiet?: boolean } | null>(
+    null,
+  )
   const [jumpValue, setJumpValue] = useState('')
   const [indexOpen, setIndexOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [wirdOpen, setWirdOpen] = useState(false)
+  const [toolsOpen, setToolsOpen] = useState(false)
   // الميتا (سور/أجزاء/أحزاب/أرباع) — لمؤشر الموضع وشُرَط خيط الحرف
   const [meta, setMeta] = useState<MushafMeta | null>(null)
-  const { readingPlan, readingToday, visitedToday, congratsDismissedDay, recordPageVisit, dismissCongrats } =
-    useWirdsStore()
+  const {
+    readingPlan,
+    readingToday,
+    visitedToday,
+    congratsDismissedDay,
+    recordPageVisit,
+    dismissCongrats,
+  } = useWirdsStore()
   // حلقة الزر: تقدم نصيب اليوم من الخطة؛ بلا خطة = حلقة كاملة بمجرد قراءة صفحة
   const planProgressToday = readingPlan ? planToday(readingPlan, readingToday.startPos, dateKey()) : null
   const ringRatio = planProgressToday
@@ -142,12 +178,16 @@ export function Reader() {
   // Esc يغلق الأحدث ظهوراً: البحث ثم لوحة التفسير ثم وضع التركيز
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const overlayOpen = indexOpen || searchOpen || wirdOpen || markOpen || toolsOpen
+      if (overlayOpen) return
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'k')) {
         e.preventDefault()
         setSearchOpen(true)
         return
       }
-      if (e.target instanceof HTMLInputElement) return
+      const target = e.target instanceof Element ? e.target : null
+      if (target?.closest('input, textarea, select, button, [contenteditable="true"], [role="tab"]'))
+        return
       if (e.key === 'ArrowLeft') nextPage()
       else if (e.key === 'ArrowRight') prevPage()
       else if (e.key === 'Escape') {
@@ -159,7 +199,18 @@ export function Reader() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [nextPage, prevPage, focus, indexOpen, markOpen, toggleFocus, selected, searchOpen, wirdOpen])
+  }, [
+    nextPage,
+    prevPage,
+    focus,
+    indexOpen,
+    markOpen,
+    toggleFocus,
+    selected,
+    searchOpen,
+    wirdOpen,
+    toolsOpen,
+  ])
 
   // الثيم يُطبَّق على جذر المستند فتتبدل متغيرات CSS وحدها
   useEffect(() => {
@@ -168,7 +219,9 @@ export function Reader() {
 
   // الميتا تُحمَّل مرة واحدة — مؤشر الموضع وشُرَط الأجزاء على خيط الحرف
   useEffect(() => {
-    loadMeta().then(setMeta).catch(() => {})
+    loadMeta()
+      .then(setMeta)
+      .catch(() => {})
   }, [])
 
   // سكون القارئ: السكة والعتبة تخفتان (لا تختفيان) بعد ٤ ثوانٍ بلا نشاط.
@@ -319,7 +372,7 @@ export function Reader() {
   const atFirst = page <= 1
   const atLast = spread ? page >= LAST_PAGE - 1 : page >= LAST_PAGE
   const tafsirOpen = selected !== null && !selected.quiet
-  const idleNow = idle && !indexOpen && !markOpen && !searchOpen && !wirdOpen
+  const idleNow = idle && !indexOpen && !markOpen && !searchOpen && !wirdOpen && !toolsOpen
   const readDone = planProgressToday?.done ?? false
   const showCongrats = readDone && congratsDismissedDay !== dateKey()
 
@@ -332,92 +385,82 @@ export function Reader() {
   return (
     <div
       className={
-        'app-shell' +
-        (focus ? ' app-shell--focus' : '') +
-        (tafsirOpen ? ' app-shell--aside' : '') +
-        (idleNow ? ' chrome--idle' : '')
+        'reader-shell' +
+        (focus ? ' reader-shell--focus' : '') +
+        (tafsirOpen ? ' reader-shell--aside' : '') +
+        (idleNow ? ' reader-shell--idle' : '')
       }
+      dir="rtl"
     >
       {!focus && (
-        <nav className="reader-rail" aria-label="أدوات المصحف">
-          <div className="rail-group">
-            <button
-              className={'rail-btn' + (indexOpen ? ' rail-btn--active' : '')}
-              data-label="فهرس المصحف"
-              aria-label="فهرس المصحف"
-              onClick={() => setIndexOpen(true)}
-            >
-              <IconIndex />
-            </button>
-            <button
-              className="rail-btn"
-              data-label="بحث في المصحف (Ctrl+F)"
-              aria-label="بحث في المصحف"
-              onClick={() => setSearchOpen(true)}
-            >
-              <IconSearch />
-            </button>
+        <aside className="reader-rail-v2" aria-label="أدوات القارئ">
+          <div className="reader-rail-v2__brand" aria-label="ورتّل القرآن">
+            <span aria-hidden="true">و</span>
           </div>
-
-          <div className="rail-sep" />
-
-          <div className="rail-group">
-            <button
-              className="rail-btn"
-              data-label={wirdLabel}
-              aria-label={wirdLabel}
+          <nav className="reader-rail-v2__actions" aria-label="التنقل الرئيسي">
+            <NavAction
+              label="فهرس المصحف"
+              shortLabel="الفهرس"
+              icon={<IconIndex />}
+              active={indexOpen}
+              onClick={() => setIndexOpen(true)}
+            />
+            <NavAction
+              label="بحث في المصحف (Ctrl+F)"
+              shortLabel="البحث"
+              icon={<IconSearch />}
+              active={searchOpen}
+              onClick={() => setSearchOpen(true)}
+            />
+            <NavAction
+              label={wirdLabel}
+              shortLabel="رحلتي"
+              icon={<ProgressRing value={ringRatio} size={24} />}
+              active={wirdOpen}
               onClick={() => setWirdOpen(true)}
-            >
-              <ProgressRing ratio={ringRatio} size={20} />
-            </button>
-            <button
-              className={'rail-btn' + (currentMark ? ' rail-btn--active' : '')}
-              data-label={currentMark ? `إزالة الإشارة «${currentMark.name}»` : 'حفظ إشارة هنا'}
-              aria-label={currentMark ? `إزالة الإشارة ${currentMark.name}` : 'حفظ إشارة هنا'}
-              aria-pressed={!!currentMark}
+            />
+            <NavAction
+              label={currentMark ? `إزالة الإشارة ${currentMark.name}` : 'حفظ إشارة في هذا الموضع'}
+              shortLabel="إشارة"
+              icon={currentMark ? <IconStarFilled /> : <IconStar />}
+              active={!!currentMark}
+              pressed={!!currentMark}
               onClick={() =>
                 currentMark ? removeBookmark(currentMark.id) : (setMarkName(''), setMarkOpen(true))
               }
-            >
-              {currentMark ? <IconStarFilled /> : <IconStar />}
-            </button>
-          </div>
-
-          <div className="rail-sep" />
-
-          <div className="rail-group">
-            <button
-              className="rail-btn"
-              data-label={`السراج: ${THEME_LABEL[theme]} — انتقل إلى ${THEME_LABEL[THEME_NEXT[theme]]}`}
-              aria-label={`تغيير الإضاءة، الحالية ${THEME_LABEL[theme]}`}
-              onClick={cycleTheme}
-            >
-              <ThemeIcon />
-            </button>
-            <button
-              className="rail-btn"
-              data-label={spread ? 'عرض صفحة واحدة' : 'عرض صفحتين متقابلتين'}
-              aria-label={spread ? 'عرض صفحة واحدة' : 'عرض صفحتين متقابلتين'}
-              onClick={toggleMode}
-            >
-              {spread ? <IconSingle /> : <IconSpread />}
-            </button>
-            <button
-              className="rail-btn"
-              data-label="وضع التركيز — إخفاء الأدوات (Esc للخروج)"
-              aria-label="وضع التركيز"
-              onClick={toggleFocus}
-            >
-              <IconFocus />
-            </button>
-          </div>
+            />
+          </nav>
 
           <ForeEdge page={page} meta={meta} onGo={goPage} />
-        </nav>
+
+          <nav
+            className="reader-rail-v2__actions reader-rail-v2__actions--secondary"
+            aria-label="إعدادات العرض السريعة"
+          >
+            <NavAction
+              label={`الإضاءة الحالية ${THEME_LABEL[theme]}، انتقل إلى ${THEME_LABEL[THEME_NEXT[theme]]}`}
+              shortLabel="الإضاءة"
+              icon={<ThemeIcon />}
+              onClick={cycleTheme}
+            />
+            <NavAction
+              label={spread ? 'عرض صفحة واحدة' : 'عرض صفحتين متقابلتين'}
+              shortLabel="العرض"
+              icon={spread ? <IconSingle /> : <IconSpread />}
+              onClick={toggleMode}
+            />
+            <NavAction
+              label="وضع التركيز"
+              shortLabel="تركيز"
+              icon={<IconFocus />}
+              onClick={toggleFocus}
+            />
+          </nav>
+        </aside>
       )}
 
-      <div className="stage-frame">
-        <main ref={stageRef} className="reader-stage">
+      <section className="reader-stage-shell" aria-label="صفحات المصحف">
+        <main ref={stageRef} className="reader-stage-v2">
           {spread ? (
             <div className="mushaf-spread" dir="rtl">
               <MushafPage
@@ -426,7 +469,6 @@ export function Reader() {
                 selectedWordId={selected?.id ?? null}
                 onSelectWord={onSelectWord}
               />
-              {/* طيّة المجلّد: الصفحتان تلتقيان على خيط واحد كمصحف مفتوح */}
               <span className="mushaf-gutter" aria-hidden="true" />
               <MushafPage
                 key={page + 1}
@@ -447,43 +489,40 @@ export function Reader() {
 
         {!focus && (
           <>
-            <button
-              className="flip-btn flip-btn--prev"
+            <IconButton
+              className="reader-flip reader-flip--prev"
+              label="الصفحة السابقة"
+              icon={<IconPrev />}
               onClick={prevPage}
               disabled={atFirst}
-              data-label="الصفحة السابقة"
-              aria-label="الصفحة السابقة"
-            >
-              <IconPrev />
-            </button>
-            <button
-              className="flip-btn flip-btn--next"
+            />
+            <IconButton
+              className="reader-flip reader-flip--next"
+              label="الصفحة التالية"
+              icon={<IconNext />}
               onClick={nextPage}
               disabled={atLast}
-              data-label="الصفحة التالية"
-              aria-label="الصفحة التالية"
-            >
-              <IconNext />
-            </button>
+            />
           </>
         )}
 
         {focus && (
-          <button className="focus-exit" onClick={toggleFocus} aria-label="الخروج من وضع التركيز (Esc)">
-            <IconClose />
-          </button>
+          <IconButton
+            className="reader-focus-exit"
+            label="الخروج من وضع التركيز (Esc)"
+            icon={<IconClose />}
+            onClick={toggleFocus}
+          />
         )}
 
         {showCongrats && !wirdOpen && (
-          <div className="wird-toast" dir="rtl" role="status">
+          <div className="reader-toast" role="status">
             <IconSeal />
             <span>أتممت نصيب اليوم من ختمتك — بارك الله فيك</span>
-            <button className="reader-btn icon-btn" onClick={dismissCongrats} aria-label="إغلاق التهنئة">
-              <IconClose />
-            </button>
+            <IconButton label="إغلاق التهنئة" icon={<IconClose />} onClick={dismissCongrats} />
           </div>
         )}
-      </div>
+      </section>
 
       {tafsirOpen && (
         <TafsirPanel
@@ -494,121 +533,236 @@ export function Reader() {
       )}
 
       {!focus && (
-        <footer className="reader-ledge">
-          <div className="ledge-side">
-            <button
-              className="ledge-place"
-              onClick={() => setIndexOpen(true)}
-              title="موضعك في الأجزاء والأحزاب — انقر لفتح الفهرس"
-            >
+        <footer className="reader-statusbar">
+          <button type="button" className="reader-location" onClick={() => setIndexOpen(true)}>
+            <span className="reader-location__eyebrow">الموضع الحالي</span>
+            <span className="reader-location__value">
               {meta ? (
                 <>
                   الجزء {arNum(juzOfPage(meta, page))}
-                  <em>·</em>
+                  <i>•</i>
                   الحزب {arNum(hizbOfPage(meta, page))}
-                  <em>·</em>
+                  <i>•</i>
                   {quarterLabel(rubOfPage(meta, page))}
                 </>
               ) : (
-                '…'
+                'جارٍ تحديد الموضع…'
               )}
-            </button>
-            <span className="ledge-rule" />
-            <span className="ledge-page">
-              <b>{spread ? `${arNum(page)}–${arNum(page + 1)}` : arNum(page)}</b>
-              <span>من {arNum(LAST_PAGE)}</span>
             </span>
+          </button>
+
+          <div
+            className="reader-page-status"
+            aria-label={`الصفحة ${arNum(page)} من ${arNum(LAST_PAGE)}`}
+          >
+            <strong>{spread ? `${arNum(page)}–${arNum(page + 1)}` : arNum(page)}</strong>
+            <span>/ {arNum(LAST_PAGE)}</span>
           </div>
 
-          <div className="ledge-side">
+          <div className="reader-statusbar__tools">
             {report && (
-              <span className="ledge-seal" title={`بصمة الحزمة ${report.bundleSha256}`}>
-                <IconSeal />
-                {arNum(report.verified)} ملفاً مطابقاً
+              <span className="reader-integrity" title={`بصمة الحزمة ${report.bundleSha256}`}>
+                <IconSeal /> {arNum(report.verified)} ملفاً موثّقاً
               </span>
             )}
-            <span className="ledge-rule" />
-            <form onSubmit={onJump}>
+            <form className="reader-jump" onSubmit={onJump}>
+              <label className="ui-sr-only" htmlFor="reader-page-jump">
+                الانتقال إلى صفحة
+              </label>
               <input
-                className="ledge-jump"
+                id="reader-page-jump"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={LAST_PAGE}
-                placeholder="اذهب…"
-                aria-label="الانتقال إلى صفحة"
+                placeholder="اذهب إلى صفحة"
                 value={jumpValue}
-                onChange={(e) => setJumpValue(e.target.value)}
+                onChange={(event) => setJumpValue(event.target.value)}
               />
             </form>
-            <div className="ledge-zoom">
-              <button onClick={zoomOut} disabled={zoom <= 0.7} aria-label="تصغير الصفحة" title="تصغير">
-                <IconMinus />
-              </button>
-              <button className="ledge-zoom-val" onClick={resetZoom} title="إعادة المقاس الأصلي">
+            <div className="reader-zoom" role="group" aria-label="تكبير الصفحة">
+              <IconButton
+                label="تصغير الصفحة"
+                icon={<IconMinus />}
+                onClick={zoomOut}
+                disabled={zoom <= 0.7}
+              />
+              <Button variant="ghost" size="sm" onClick={resetZoom} title="إعادة المقاس الأصلي">
                 {arNum(Math.round(zoom * 100))}٪
-              </button>
-              <button onClick={zoomIn} disabled={zoom >= 1.6} aria-label="تكبير الصفحة" title="تكبير">
-                <IconPlus />
-              </button>
+              </Button>
+              <IconButton
+                label="تكبير الصفحة"
+                icon={<IconPlus />}
+                onClick={zoomIn}
+                disabled={zoom >= 1.6}
+              />
             </div>
           </div>
         </footer>
       )}
 
-      {searchOpen && <SearchPanel onGo={onSearchGo} onClose={() => setSearchOpen(false)} />}
+      {!focus && (
+        <nav className="reader-mobile-nav" aria-label="التنقل الرئيسي">
+          <NavAction
+            label="فهرس المصحف"
+            shortLabel="الفهرس"
+            icon={<IconIndex />}
+            active={indexOpen}
+            onClick={() => setIndexOpen(true)}
+          />
+          <NavAction
+            label="البحث في المصحف"
+            shortLabel="البحث"
+            icon={<IconSearch />}
+            active={searchOpen}
+            onClick={() => setSearchOpen(true)}
+          />
+          <NavAction
+            label={wirdLabel}
+            shortLabel="رحلتي"
+            icon={<ProgressRing value={ringRatio} size={23} />}
+            active={wirdOpen}
+            onClick={() => setWirdOpen(true)}
+          />
+          <NavAction
+            label={currentMark ? `إزالة الإشارة ${currentMark.name}` : 'حفظ إشارة هنا'}
+            shortLabel="إشارة"
+            icon={currentMark ? <IconStarFilled /> : <IconStar />}
+            active={!!currentMark}
+            pressed={!!currentMark}
+            onClick={() =>
+              currentMark ? removeBookmark(currentMark.id) : (setMarkName(''), setMarkOpen(true))
+            }
+          />
+          <NavAction
+            label="إعدادات العرض"
+            shortLabel="العرض"
+            icon={<IconSettings />}
+            active={toolsOpen}
+            onClick={() => setToolsOpen(true)}
+          />
+        </nav>
+      )}
 
+      {searchOpen && <SearchPanel onGo={onSearchGo} onClose={() => setSearchOpen(false)} />}
       {wirdOpen && (
         <WirdPanel
           onClose={() => setWirdOpen(false)}
-          onGoPage={(p) => {
+          onGoPage={(next) => {
             setWirdOpen(false)
-            setPage(p)
+            setPage(next)
           }}
         />
       )}
-
-      {indexOpen && (
-        <IndexPanel
-          currentPage={page}
-          onGo={(p) => {
-            setPage(p)
-            setIndexOpen(false)
-          }}
-          onClose={() => setIndexOpen(false)}
-        />
-      )}
+      {indexOpen && <IndexPanel currentPage={page} onGo={setPage} onClose={() => setIndexOpen(false)} />}
 
       {markOpen && (
-        <div className="index-backdrop index-backdrop--center" onClick={() => setMarkOpen(false)}>
-          <div className="mark-card" dir="rtl" onClick={(e) => e.stopPropagation()}>
-            <strong className="mark-title">إشارة مرجعية — صفحة {arNum(page)}</strong>
-            <form
-              className="mark-form"
-              onSubmit={(e) => {
-                e.preventDefault()
-                addBookmark(markName || `صفحة ${page}`)
-                setMarkOpen(false)
-              }}
-            >
-              <input
-                autoFocus
-                className="mark-input"
-                placeholder="سمِّ الإشارة… (مثل: ورد الفجر)"
-                value={markName}
-                onChange={(e) => setMarkName(e.target.value)}
-                maxLength={60}
-              />
-              <div className="mark-actions">
-                <button type="submit" className="reader-btn reader-btn--primary">
-                  احفظ الإشارة
-                </button>
-                <button type="button" className="reader-btn" onClick={() => setMarkOpen(false)}>
-                  إلغاء
-                </button>
+        <Dialog
+          title={`إشارة مرجعية — صفحة ${arNum(page)}`}
+          description="امنح هذا الموضع اسماً واضحاً لتعود إليه بسرعة."
+          onClose={() => setMarkOpen(false)}
+          className="reader-bookmark-dialog"
+        >
+          <form
+            className="reader-bookmark-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              addBookmark(markName || `صفحة ${page}`)
+              setMarkOpen(false)
+            }}
+          >
+            <label htmlFor="bookmark-name">اسم الإشارة</label>
+            <input
+              id="bookmark-name"
+              data-autofocus
+              placeholder="مثال: ورد الفجر"
+              value={markName}
+              onChange={(event) => setMarkName(event.target.value)}
+              maxLength={60}
+            />
+            <div className="reader-bookmark-form__actions">
+              <Button type="submit" variant="primary" leadingIcon={<IconStar />}>
+                حفظ الإشارة
+              </Button>
+              <Button onClick={() => setMarkOpen(false)}>إلغاء</Button>
+            </div>
+          </form>
+        </Dialog>
+      )}
+
+      {toolsOpen && (
+        <Drawer
+          title="إعدادات العرض"
+          description="اضبط القراءة من دون تغيير محتوى الصفحة."
+          onClose={() => setToolsOpen(false)}
+          size="sm"
+        >
+          <div className="reader-settings">
+            <section className="reader-settings__section">
+              <h3>الإضاءة</h3>
+              <div className="reader-settings__choices">
+                {(['day', 'sepia', 'night'] as Theme[]).map((value) => (
+                  <Button
+                    key={value}
+                    variant={theme === value ? 'primary' : 'secondary'}
+                    aria-pressed={theme === value}
+                    onClick={() => {
+                      let guard = 0
+                      while (useReaderStore.getState().theme !== value && guard++ < 3)
+                        useReaderStore.getState().cycleTheme()
+                    }}
+                  >
+                    {THEME_LABEL[value]}
+                  </Button>
+                ))}
               </div>
-            </form>
+            </section>
+            <section className="reader-settings__section">
+              <h3>طريقة العرض</h3>
+              <Button
+                className="reader-settings__wide-button"
+                leadingIcon={spread ? <IconSingle /> : <IconSpread />}
+                onClick={toggleMode}
+              >
+                {spread ? 'التحويل إلى صفحة واحدة' : 'التحويل إلى صفحتين متقابلتين'}
+              </Button>
+            </section>
+            <section className="reader-settings__section">
+              <h3>حجم الصفحة</h3>
+              <div className="reader-settings__zoom">
+                <IconButton
+                  label="تصغير الصفحة"
+                  icon={<IconMinus />}
+                  onClick={zoomOut}
+                  disabled={zoom <= 0.7}
+                />
+                <strong>{arNum(Math.round(zoom * 100))}٪</strong>
+                <IconButton
+                  label="تكبير الصفحة"
+                  icon={<IconPlus />}
+                  onClick={zoomIn}
+                  disabled={zoom >= 1.6}
+                />
+              </div>
+              <Button variant="ghost" onClick={resetZoom}>
+                استعادة الحجم الأصلي
+              </Button>
+            </section>
+            <section className="reader-settings__section">
+              <h3>القراءة الهادئة</h3>
+              <Button
+                className="reader-settings__wide-button"
+                leadingIcon={<IconFocus />}
+                onClick={() => {
+                  setToolsOpen(false)
+                  toggleFocus()
+                }}
+              >
+                الدخول إلى وضع التركيز
+              </Button>
+            </section>
           </div>
-        </div>
+        </Drawer>
       )}
     </div>
   )
