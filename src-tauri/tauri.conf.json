@@ -23,19 +23,30 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' ipc: http://ipc.localhost http://mushaf.localhost https://mushaf.localhost mushaf:; font-src 'self' data: http://mushaf.localhost https://mushaf.localhost mushaf:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
     }
   },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.ico"
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "resources": [
+      "assets/mushaf-qcf4/LICENSE.md",
+      "assets/mushaf-qcf4/README.md",
+      "assets/mushaf-qcf4/extras/surah-name-v2.ttf",
+      "assets/mushaf-qcf4/font-map.json",
+      "assets/mushaf-qcf4/fonts/*.woff2",
+      "assets/mushaf-qcf4/index.json",
+      "assets/mushaf-qcf4/layout/meta.json",
+      "assets/mushaf-qcf4/manifest.json",
+      "assets/mushaf-qcf4/pages/*.json",
+      "assets/mushaf-qcf4/surah-names.json",
+      "assets/mushaf-qcf4/tafsir/asbab/*.json",
+      "assets/mushaf-qcf4/tafsir/ibn-kathir/*.json",
+      "assets/mushaf-qcf4/tafsir/sadi/*.json",
+      "assets/mushaf-qcf4/verses-text.json",
+      "assets/mushaf-qcf4/verses.json"
     ],
-    "resources": ["assets/mushaf-qcf4"],
     "windows": {
       "nsis": {
         "languages": ["Arabic"],

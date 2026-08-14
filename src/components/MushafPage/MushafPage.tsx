@@ -8,6 +8,10 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { SURAH_NAMES_FAMILY, surahNameText } from '../../lib/fonts'
 import { useReaderStore } from '../../stores/reader'
 import { getCachedPage, loadPage } from '../../lib/pageCache'
+import {
+  loadCanonicalBasmala,
+  type CanonicalBasmalaGlyph,
+} from '../../lib/canonicalBasmala'
 import { juzLabel, juzOfPage, loadMeta } from '../../lib/meta'
 import { surahTotal } from '../../lib/ayahCounts'
 import type { Qcf4Line, Qcf4Page } from '../../types/mushaf'
@@ -27,14 +31,6 @@ function CornerOrnament({ className }: { className: string }) {
 }
 
 /** هل يحوي السطر خاتمة سورة (آخر آياتها)؟ ⇒ يُوسَّط كما في المطبوع */
-/**
- * البسملة العادية: نفس محارف كلمات سطر 1:1 من خط Hafs_01 (بسم/الله/الرحمن/الرحيم)
- * — الشكل المعتاد في فواتح السور بالمصاحف، بدل المحرف الزخرفي uF8D6 ذي الأذيال
- * الممتدة الذي يتداخل مع الأسطر المجاورة.
- */
-const BASMALA_FONT = 'QCF4_Hafs_01'
-const BASMALA_WORDS = ['\uf100', '\uf101', '\uf102', '\uf103'] as const
-
 function lineEndsSurah(line: Qcf4Line): boolean {
   for (const w of line.words) {
     if (!w.verse_key) continue
@@ -53,6 +49,9 @@ interface MushafPageProps {
 export function MushafPage({ pageNumber, selectedWordId, onSelectWord }: MushafPageProps) {
   const [page, setPage] = useState<Qcf4Page | null>(null)
   const [juz, setJuz] = useState<number | null>(null)
+  const [canonicalBasmala, setCanonicalBasmala] = useState<
+    ReadonlyArray<CanonicalBasmalaGlyph> | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
   const zoom = useReaderStore((s) => s.zoom)
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -67,7 +66,12 @@ export function MushafPage({ pageNumber, selectedWordId, onSelectWord }: MushafP
       const el = selectedWordId.endsWith(':v')
         ? root.querySelector(`[data-verse="${selectedWordId.slice(0, -2)}"]`)
         : root.querySelector(`[data-word-id="${CSS.escape(selectedWordId)}"]`)
-      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      el?.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'nearest',
+        inline: 'nearest',
+      })
     }, 60)
     return () => window.clearTimeout(t)
   }, [selectedWordId])
@@ -79,12 +83,16 @@ export function MushafPage({ pageNumber, selectedWordId, onSelectWord }: MushafP
     if (!cached) {
       setPage(null)
       setJuz(null)
+      setCanonicalBasmala(null)
     }
     setError(null)
     Promise.all([loadMeta(), cached ? Promise.resolve(cached) : loadPage(pageNumber)])
-      .then(([meta, bundle]) => {
+      .then(async ([meta, bundle]) => {
+        const hasBasmala = bundle.data.lines.some((line) => line.words[0]?.type === 'bismillah')
+        const basmala = hasBasmala ? await loadCanonicalBasmala() : null
         if (cancelled) return
         setJuz(juzOfPage(meta, pageNumber))
+        setCanonicalBasmala(basmala)
         setPage(bundle.data)
       })
       .catch((e: unknown) => {
@@ -152,9 +160,13 @@ export function MushafPage({ pageNumber, selectedWordId, onSelectWord }: MushafP
           if (head.type === 'bismillah') {
             return (
               <div key={line.line} className="mushaf-line mushaf-line--centered">
-                {BASMALA_WORDS.map((ch, i) => (
-                  <span key={i} className="mushaf-basmala" style={{ fontFamily: BASMALA_FONT }}>
-                    {ch}
+                {(canonicalBasmala ?? []).map((glyph) => (
+                  <span
+                    key={glyph.position}
+                    className="mushaf-basmala"
+                    style={{ fontFamily: glyph.font }}
+                  >
+                    {glyph.char}
                   </span>
                 ))}
               </div>

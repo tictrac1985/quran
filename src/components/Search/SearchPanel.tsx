@@ -1,24 +1,18 @@
-// لوحة البحث الفوري (3.3) — نتائج مرجعية فقط (سورة/آية/صفحة) احتراماً لقاعدة
-// «النص العثماني للبحث لا للعرض»؛ النتيجة تُفتح مظلَّلة على صفحة المصحف نفسها.
-import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  loadVersesText,
-  searchVerses,
-  type SearchResult,
-  type VerseText,
-} from '../../lib/search'
+import { useEffect, useMemo, useState } from 'react'
+import { loadVersesText, searchVerses, type SearchResult, type VerseText } from '../../lib/search'
 import { loadVerseLocs } from '../../lib/tafsir'
 import { ensureExtraFonts, SURAH_NAMES_FAMILY, surahNameText } from '../../lib/fonts'
-import { IconClose } from '../icons/Icons'
+import { IconChevron, IconSearch } from '../icons/Icons'
+import { Dialog } from '../ui'
+import { SearchVerseExcerpt } from './SearchVerseExcerpt'
 
 const arNum = (n: number) => n.toLocaleString('ar-EG')
 
-/** عدّ الآيات بصيغة عربية سليمة — المفرد والمثنى وجمع القلة والكثرة */
 function ayahCount(n: number): string {
-  if (n === 1) return 'آية واحدة'
-  if (n === 2) return 'آيتان'
-  if (n <= 10) return `${arNum(n)} آيات`
-  return `${arNum(n)} آية`
+  if (n === 1) return 'نتيجة واحدة'
+  if (n === 2) return 'نتيجتان'
+  if (n <= 10) return `${arNum(n)} نتائج`
+  return `${arNum(n)} نتيجة`
 }
 
 interface Props {
@@ -32,77 +26,122 @@ export function SearchPanel({ onGo, onClose }: Props) {
   const [data, setData] = useState<Record<string, VerseText> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pages, setPages] = useState<Record<string, { page: number }>>({})
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [pagesFailed, setPagesFailed] = useState(false)
 
   useEffect(() => {
-    ensureExtraFonts()
+    void ensureExtraFonts()
     loadVerseLocs()
       .then(setPages)
-      .catch(() => {})
+      .catch(() => setPagesFailed(true))
     loadVersesText()
       .then(setData)
-      .catch((e) => setError(String(e instanceof Error ? e.message : e)))
-    inputRef.current?.focus()
+      .catch((reason) => setError(String(reason instanceof Error ? reason.message : reason)))
   }, [])
 
-  // بحث فوري مع مهلة قصيرة — النص كله في الذاكرة فالبحث أسرع من الإدخال
   useEffect(() => {
     if (!data) return
-    const t = window.setTimeout(() => setResult(searchVerses(data, query)), 120)
-    return () => window.clearTimeout(t)
+    const timer = window.setTimeout(() => setResult(searchVerses(data, query)), 140)
+    return () => window.clearTimeout(timer)
   }, [query, data])
 
   const hits = useMemo(() => result?.hits ?? [], [result])
+  const locatedHits = useMemo(
+    () => hits.map((hit) => ({ ...hit, page: pages[hit.key]?.page ?? null })),
+    [hits, pages],
+  )
+  const hasQuery = (result?.query.length ?? 0) >= 2
 
   return (
-    <div className="index-backdrop" onClick={onClose}>
-      <div className="index-panel search-panel" dir="rtl" onClick={(e) => e.stopPropagation()}>
-        <div className="index-head">
-          <strong>بحث في المصحف</strong>
-          <button className="index-close" onClick={onClose} title="إغلاق (Esc)" aria-label="إغلاق البحث">
-            <IconClose />
-          </button>
-        </div>
+    <Dialog
+      title="البحث في المصحف"
+      description="اكتب حرفين أو أكثر؛ تُعرض المقتطفات بمحارف صفحات المصحف المعتمدة."
+      onClose={onClose}
+      className="search-v2"
+    >
+      <div className="search-v2__field">
+        <IconSearch aria-hidden="true" />
+        <label className="ui-sr-only" htmlFor="mushaf-search-input">
+          كلمات البحث
+        </label>
         <input
-          ref={inputRef}
-          className="mark-input search-input"
-          placeholder={data ? 'اكتب كلمات من الآية… (بتشكيل أو بدون)' : '… يُجهَّز فهرس البحث'}
+          id="mushaf-search-input"
+          data-autofocus
+          type="search"
+          autoComplete="off"
+          placeholder={data ? 'ابحث بكلمات من الآية…' : 'جارٍ تجهيز فهرس البحث…'}
           value={query}
           disabled={!data && !error}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && hits.length > 0) onGo(hits[0].key)
-            if (e.key === 'Escape') onClose()
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && locatedHits.length > 0) onGo(locatedHits[0].key)
           }}
         />
-        {error && <p className="tafsir-status tafsir-status--error">تعذر تحميل فهرس البحث: {error}</p>}
-        {result && result.query.length >= 2 && (
-          <p className="search-count">
-            {result.total === 0
-              ? 'لا نتائج — جرّب كلمات أقل أو صياغة أخرى'
-              : `${ayahCount(result.total)}${result.total > hits.length ? ` — تُعرض أول ${arNum(hits.length)}` : ''}`}
-          </p>
+        {query && (
+          <button
+            type="button"
+            className="search-v2__clear"
+            onClick={() => setQuery('')}
+            aria-label="مسح البحث"
+          >
+            ×
+          </button>
         )}
-        {/* النتيجة: نص الآية أولاً وأكبر — هو ما يقرؤه الباحث ليتعرّف على مراده،
-            والمرجع (السورة/الآية/الصفحة) سطر خادم تحته. كان معكوساً: المرجع
-            كبيراً مفرّقاً على العرض والنص سطراً باهتاً في الذيل. */}
-        <div className="index-list search-list">
-          {hits.map((h) => (
-            <button key={h.key} className="search-hit" onClick={() => onGo(h.key)}>
-              {/* نص الآية من verses-text.json المحمي بالبصمة — نص أصول معتمد
-                  نظيف (بلا فواصل)، لا كتابة يدوية */}
-              <span className="search-hit-text">{data?.[h.key]?.t ?? ''}</span>
-              <span className="search-hit-ref">
-                <span className="search-hit-surah" style={{ fontFamily: SURAH_NAMES_FAMILY }}>
-                  {surahNameText(h.surah)}
+      </div>
+
+      <div className="search-v2__summary" aria-live="polite">
+        {error ? (
+          <span className="ui-error">تعذر تحميل فهرس البحث.</span>
+        ) : pagesFailed ? (
+          <span className="ui-error">تعذر تحديد صفحات المقتطفات؛ ما زال الانتقال متاحًا.</span>
+        ) : hasQuery ? (
+          result?.total === 0 ? (
+            'لا نتائج؛ جرّب كلمات أقل أو صياغة أخرى.'
+          ) : (
+            `${ayahCount(result?.total ?? 0)}${(result?.total ?? 0) > hits.length ? `، تُعرض أول ${arNum(hits.length)}` : ''}`
+          )
+        ) : (
+          'المقتطفات المعروضة هي محارف QCF الأصلية من الصفحات المحققة فقط.'
+        )}
+      </div>
+
+      <div className="search-v2__results" aria-label="نتائج البحث">
+        {locatedHits.map((hit) => {
+          return (
+            <button
+              type="button"
+              key={hit.key}
+              className="search-v2__result"
+              onClick={() => onGo(hit.key)}
+              aria-label={`انتقل إلى السورة رقم ${arNum(hit.surah)}، الآية ${arNum(hit.ayah)}${hit.page ? `، الصفحة ${arNum(hit.page)}` : ''}`}
+            >
+              <span className="search-v2__surah-wrap">
+                <span className="ui-sr-only">سورة رقم {arNum(hit.surah)}</span>
+                <span
+                  className="search-v2__surah"
+                  aria-hidden="true"
+                  style={{ fontFamily: SURAH_NAMES_FAMILY }}
+                >
+                  {surahNameText(hit.surah)}
                 </span>
-                <span>الآية {arNum(h.ayah)}</span>
-                {pages[h.key] && <span>صفحة {arNum(pages[h.key].page)}</span>}
+              </span>
+              <span className="search-v2__reference">
+                <strong>الآية {arNum(hit.ayah)}</strong>
+                <span>{hit.page ? `صفحة ${arNum(hit.page)}` : 'يُحدَّد موضع الصفحة عند الفتح'}</span>
+              </span>
+              {hit.page ? (
+                <SearchVerseExcerpt page={hit.page} verseKey={hit.key} />
+              ) : (
+                <span className="search-excerpt" aria-hidden="true">
+                  <span className="search-excerpt__skeleton" />
+                </span>
+              )}
+              <span className="search-v2__go">
+                عرض الموضع <IconChevron />
               </span>
             </button>
-          ))}
-        </div>
+          )
+        })}
       </div>
-    </div>
+    </Dialog>
   )
 }

@@ -1,23 +1,45 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-import { createReadStream, existsSync, statSync } from 'node:fs'
-import { join, normalize, resolve } from 'node:path'
+import { createReadStream, existsSync, realpathSync, statSync } from 'node:fs'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 
 // جذر أصول المصحف (read-only) — يُقدَّم في التطوير عبر وسيط محلي،
 // وداخل حزمة Tauri لاحقاً يُصل إليه عبر convertFileSrc (انظر src/lib/assets.ts).
 // الحزمة الفعلية: mushaf-qcf4 (طبعة 1441هـ). حزمة V2 (1421هـ) باقية في
 // src-tauri/assets/mushaf كنسخة احتياطية حتى اعتماد الترحيل نهائياً.
-const MUSHAF_ROOT = resolve(__dirname, 'src-tauri/assets/mushaf-qcf4')
+const MUSHAF_ROOT = resolve(import.meta.dirname, 'src-tauri/assets/mushaf-qcf4')
+const MUSHAF_ROOT_REAL = realpathSync(MUSHAF_ROOT)
+
+export function resolveMushafAssetPath(requestUrl: string): string | null {
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(requestUrl.split('?')[0])
+  } catch {
+    return null
+  }
+
+  if (decoded.includes('\0')) return null
+  const requestedPath = decoded.replace(/^[/\\]+/, '')
+  const candidate = resolve(MUSHAF_ROOT_REAL, requestedPath)
+  const fromRoot = relative(MUSHAF_ROOT_REAL, candidate)
+
+  if (fromRoot === '..' || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) return null
+  if (!existsSync(candidate) || !statSync(candidate).isFile()) return null
+
+  const realCandidate = realpathSync(candidate)
+  const realFromRoot = relative(MUSHAF_ROOT_REAL, realCandidate)
+  if (realFromRoot === '..' || realFromRoot.startsWith(`..${sep}`) || isAbsolute(realFromRoot)) return null
+  return realCandidate
+}
 
 function mushafAssetsDevServer(): Plugin {
   return {
     name: 'mushaf-assets-dev-server',
     configureServer(server) {
       server.middlewares.use('/mushaf-assets', (req, res) => {
-        const urlPath = decodeURIComponent((req.url ?? '/').split('?')[0])
-        const filePath = normalize(join(MUSHAF_ROOT, urlPath))
-        // حارس: لا خروج عن جذر الأصول إطلاقاً
-        if (!filePath.startsWith(MUSHAF_ROOT) || !existsSync(filePath) || !statSync(filePath).isFile()) {
+        const filePath = resolveMushafAssetPath(req.url ?? '/')
+        // حارس: لا خروج عن جذر الأصول إطلاقاً، حتى عبر symlink أو مسار sibling ذي بادئة متشابهة.
+        if (!filePath) {
           res.statusCode = 404
           res.end('not found')
           return

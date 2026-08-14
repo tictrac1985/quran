@@ -41,6 +41,12 @@ export function loadPage(n: number): Promise<PageBundle> {
       }
       return bundle
     })
+    .catch((error: unknown) => {
+      // لا نُبقِ وعداً مرفوضاً في المخبأ: فشل قراءة/خط عابر يجب أن يكون قابلاً
+      // للمحاولة من جديد دون إلزام المستخدم بإعادة تشغيل التطبيق كله.
+      pending.delete(n)
+      throw error
+    })
   pending.set(n, promise)
   return promise
 }

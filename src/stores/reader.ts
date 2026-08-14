@@ -38,6 +38,8 @@ interface ReaderState {
   removeBookmark: (id: string) => void
   cycleTheme: () => void
   toggleFocus: () => void
+  /** يضمن عدم بقاء وضع الصفحتين عند تضيق/دوران النافذة. */
+  syncViewport: (width: number, height: number) => void
 }
 
 const clamp = (n: number) => Math.min(LAST_PAGE, Math.max(1, Math.round(n)))
@@ -46,15 +48,22 @@ const clampZoom = (z: number) => Math.min(1.6, Math.max(0.7, Math.round(z * 100)
 // مرساة الصفحتين فردية دائماً: اليمين فردي واليسار زوجي (يمين+1) — كالمصحف المفتوح
 const anchorOdd = (n: number) => Math.min(LAST_PAGE - 1, Math.max(1, n % 2 === 1 ? n : n - 1))
 
-// الصفحة الابتدائية من رابط الاستعلام (?page=50) — ربط عميق وقابلية فحص آلية
-const initialPage = (() => {
+function pageFromUrl(): number | null {
+  if (typeof window === 'undefined') return null
   const raw = new URLSearchParams(window.location.search).get('page')
   const n = raw ? Number.parseInt(raw, 10) : NaN
-  return Number.isFinite(n) ? clamp(n) : 1
-})()
+  return Number.isFinite(n) ? clamp(n) : null
+}
+
+// الصفحة الابتدائية من رابط الاستعلام (?page=50) — ربط عميق وقابلية فحص آلية
+const initialPage = pageFromUrl() ?? 1
 
 // الشاشات العريضة تفتح على صفحتين متقابلتين، والضيقة على صفحة واحدة
-const wideEnough = () => window.innerWidth / window.innerHeight > 1.25
+export const isWideViewport = (width: number, height: number): boolean =>
+  Number.isFinite(width) && Number.isFinite(height) && height > 0 && width / height > 1.25
+
+const wideEnough = () =>
+  typeof window !== 'undefined' && isWideViewport(window.innerWidth, window.innerHeight)
 const initialMode: ViewMode = wideEnough() ? 'spread' : 'single'
 
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
@@ -90,10 +99,11 @@ export const useReaderStore = create<ReaderState>()(
             { id: newId(), name: name.trim(), page: s.page, createdAt: Date.now() },
           ],
         })),
-      removeBookmark: (id) =>
-        set((s) => ({ bookmarks: s.bookmarks.filter((b) => b.id !== id) })),
+      removeBookmark: (id) => set((s) => ({ bookmarks: s.bookmarks.filter((b) => b.id !== id) })),
       cycleTheme: () => set((s) => ({ theme: THEME_NEXT[s.theme] })),
       toggleFocus: () => set((s) => ({ focus: !s.focus })),
+      syncViewport: (width, height) =>
+        set((s) => (s.mode === 'spread' && !isWideViewport(width, height) ? { mode: 'single' } : s)),
     }),
     {
       name: 'mushaf-reader',
@@ -113,11 +123,19 @@ export const useReaderStore = create<ReaderState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<ReaderState>
         const mode: ViewMode = p.mode === 'spread' && !wideEnough() ? 'single' : (p.mode ?? current.mode)
-        const raw = new URLSearchParams(window.location.search).get('page')
-        const fromUrl = raw ? Number.parseInt(raw, 10) : NaN
-        const page = clamp(Number.isFinite(fromUrl) ? fromUrl : (p.page ?? current.page))
+        const fromUrl = pageFromUrl()
+        const page = clamp(fromUrl ?? p.page ?? current.page)
         return { ...current, ...p, mode, page: mode === 'spread' ? anchorOdd(page) : page }
       },
     },
   ),
 )
+
+// الوضع المحفوظ قد يأتي من شاشة عريضة، ثم تُدار الشاشة أو تُصغّر النافذة.
+// مستمع واحد لعمر التطبيق يكفي؛ في HMR يُزال قبل تركيب نسخة الوحدة الجديدة.
+if (typeof window !== 'undefined') {
+  const syncViewport = () =>
+    useReaderStore.getState().syncViewport(window.innerWidth, window.innerHeight)
+  window.addEventListener('resize', syncViewport, { passive: true })
+  window.addEventListener('orientationchange', syncViewport)
+}

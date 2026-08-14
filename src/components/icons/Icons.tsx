@@ -125,6 +125,23 @@ export const IconFocus = (p: P) => (
   </Ic>
 )
 
+/** إعدادات العرض: ثلاثة منزلقات واضحة من دون ترس زخرفي ثقيل */
+export const IconSettings = (p: P) => (
+  <Ic {...p}>
+    <path d="M4 7h7M15 7h5M4 12h2M10 12h10M4 17h10M18 17h2" />
+    <circle cx="13" cy="7" r="2" />
+    <circle cx="8" cy="12" r="2" />
+    <circle cx="16" cy="17" r="2" />
+  </Ic>
+)
+
+/** سهم صغير لقوائم الإفصاح والانتقال */
+export const IconChevron = (p: P) => (
+  <Ic {...p}>
+    <path d="M9 5.5 15.5 12 9 18.5" />
+  </Ic>
+)
+
 export const IconClose = (p: P) => (
   <Ic {...p}>
     <path d="M6.4 6.4l11.2 11.2M17.6 6.4L6.4 17.6" />
